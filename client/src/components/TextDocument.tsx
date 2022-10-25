@@ -1,19 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
-type PropType = {
-    eventSource: any;
-};
-
-function TextDocument({ eventSource }: PropType) {
+function TextDocument() {
     const [value, setValue] = useState('');
-
-    // useEffect(() => {
-    //     return () => {
-    //         eventSource.close();
-    //     };
-    // }, []);
 
     const modules = {
         toolbar: [['bold', 'italic', 'underline']],

@@ -3,10 +3,9 @@ import React, { useState } from 'react';
 
 type PropType = {
     setDocOpen: (data: boolean) => void;
-    setEventSource: (data: any) => void;
 };
 
-function ConnectForm({ setDocOpen, setEventSource }: PropType) {
+function ConnectForm({ setDocOpen }: PropType) {
     const [text, setText] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -29,12 +28,10 @@ function ConnectForm({ setDocOpen, setEventSource }: PropType) {
         eventSource.onmessage = (e: any) => {
             console.log(e.data);
         };
-        console.log(eventSource);
-        setEventSource(eventSource);
     };
 
     return loading ? (
-        <h1>Connecting</h1>
+        <p>Connecting...</p>
     ) : (
         <div>
             <h1>Connect Form</h1>
