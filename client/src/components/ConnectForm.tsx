@@ -3,17 +3,39 @@ import React, { useState } from 'react';
 
 type PropType = {
     setDocOpen: (data: boolean) => void;
+    setEventSource: (data: any) => void;
 };
 
-function ConnectForm({ setDocOpen }: PropType) {
+function ConnectForm({ setDocOpen, setEventSource }: PropType) {
     const [text, setText] = useState('');
+    const [loading, setLoading] = useState(false);
+
     const connect = async (e: React.SyntheticEvent) => {
         e.preventDefault();
-        // await axios.get('/api/connect/:' + text);
-        setDocOpen(true);
+        setLoading(true);
+        const eventSource = new EventSource(
+            `http://localhost:5001/api/connect/${text}`
+        );
+        eventSource.onopen = (e) => {
+            setLoading(false);
+            eventSource.addEventListener('ping', (e) => {
+                console.log(e);
+            });
+            setDocOpen(true);
+        };
+        eventSource.addEventListener('sync', (e) => {
+            console.log(e);
+        });
+        eventSource.onmessage = (e: any) => {
+            console.log(e.data);
+        };
+        console.log(eventSource);
+        setEventSource(eventSource);
     };
 
-    return (
+    return loading ? (
+        <h1>Connecting</h1>
+    ) : (
         <div>
             <h1>Connect Form</h1>
             <form onSubmit={connect}>
