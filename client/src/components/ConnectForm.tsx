@@ -16,12 +16,14 @@ function ConnectForm({ setDocOpen, id, setId, setSyncValue }: PropType) {
         const eventSource = new EventSource(
             `http://localhost:5001/api/connect/${id}`
         );
-        eventSource.onopen = (e) => {
-            setLoading(false);
-            setDocOpen(true);
-        };
+        // eventSource.onopen = (e) => {
+        //     setLoading(false);
+        //     setDocOpen(true);
+        // };
         eventSource.addEventListener('sync', (e) => {
+            setLoading(false);
             setSyncValue(e.data);
+            setDocOpen(true);
         });
     };
 

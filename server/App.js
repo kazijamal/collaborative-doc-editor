@@ -25,7 +25,7 @@ app.get('/api/connect/:id', async (req, res) => {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
     });
-    res.write('event: sync\n'); // added these
+    res.write('event: sync\n');
     res.write(`data: ${base64Encoded}`);
     res.write('\n\n');
 });
@@ -33,9 +33,9 @@ app.get('/api/connect/:id', async (req, res) => {
 app.post('/api/op/:id', async (req, res) => {
     const { id } = req.params;
     const update = toUint8Array(req.body.update);
-    console.log('received update: ', update);
     const updated = await persistence.storeUpdate(id, update);
     console.log('store update res: ', updated);
+    res.sendStatus(200);
 });
 
 app.get('/', async (req, res) => {

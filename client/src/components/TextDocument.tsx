@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as Y from 'yjs';
 import { QuillBinding } from 'y-quill';
 import ReactQuill from 'react-quill';
@@ -12,35 +12,35 @@ type PropType = {
 };
 
 const TextDocument = ({ id, syncValue }: PropType) => {
+    let editor: any = null;
     let quillRef: any = null;
-    let reactQuillRef: any = null;
 
     useEffect(() => {
+        console.log('running useeffect');
         attachQuillRefs();
         const ydoc = new Y.Doc();
         const ytext = ydoc.getText('quill');
         const binaryEncoded = toUint8Array(syncValue);
         Y.applyUpdate(ydoc, binaryEncoded);
-        new QuillBinding(ytext, quillRef);
+        new QuillBinding(ytext, editor);
         ydoc.on('update', async (update) => {
             console.log('sending update: ', update);
             const res = await axios.post(`http://localhost:5001/api/op/${id}`, {
                 update: fromUint8Array(update),
             });
-            console.log(res);
         });
     }, []);
 
     const attachQuillRefs = () => {
-        if (typeof reactQuillRef.getEditor !== 'function') return;
-        quillRef = reactQuillRef.getEditor();
+        if (typeof quillRef.getEditor !== 'function') return;
+        editor = quillRef.getEditor();
     };
 
     return (
         <div>
             <ReactQuill
                 ref={(e) => {
-                    reactQuillRef = e;
+                    quillRef = e;
                 }}
                 theme={'snow'}
             />
