@@ -1,29 +1,41 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
-
 const Y = require('yjs');
 const LeveldbPersistence = require('y-leveldb').LeveldbPersistence;
 const persistence = new LeveldbPersistence('./leveldb');
+const toUint8Array = require('js-base64').toUint8Array;
+const fromUint8Array = require('js-base64').fromUint8Array;
+const QuillDeltaToHtmlConverter =
+    require('quill-delta-to-html').QuillDeltaToHtmlConverter;
 
 app.use(cors());
+app.use(express.json());
 
 app.use('/library', express.static('library'));
 
 app.get('/api/connect/:id', async (req, res) => {
     const { id } = req.params;
-    const yDoc = await persistence.getYDoc(id);
+    const ydoc = await persistence.getYDoc(id);
+    const documentState = Y.encodeStateAsUpdate(ydoc);
+    const base64Encoded = fromUint8Array(documentState);
+    console.log('sending sync: ', base64Encoded);
     res.writeHead(200, {
         Connection: 'keep-alive',
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
     });
-    setInterval(async () => {
-        console.log('pinging');
-        res.write('event: sync\n'); // added these
-        res.write(`data: ${JSON.stringify({ hasUnread: true })}`);
-        res.write('\n\n');
-    }, 5000);
+    res.write('event: sync\n'); // added these
+    res.write(`data: ${base64Encoded}`);
+    res.write('\n\n');
+});
+
+app.post('/api/op/:id', async (req, res) => {
+    const { id } = req.params;
+    const update = toUint8Array(req.body.update);
+    console.log('received update: ', update);
+    const updated = await persistence.storeUpdate(id, update);
+    console.log('store update res: ', updated);
 });
 
 app.get('/', async (req, res) => {
