@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import * as Y from 'yjs';
 import { QuillBinding } from 'y-quill';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -20,7 +19,7 @@ const TextDocument = ({ id, ydoc }: PropType) => {
         const ytext = ydoc.getText('quill');
         new QuillBinding(ytext, editor);
         ydoc.on('update', async (update: any) => {
-            await axios.post(`http://localhost:5001/api/op/${id}`, {
+            await axios.post(`/api/op/${id}`, {
                 update: fromUint8Array(update),
             });
         });

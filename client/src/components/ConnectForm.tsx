@@ -16,7 +16,8 @@ function ConnectForm({ setDocOpen, id, setId, ydoc }: PropType) {
         e.preventDefault();
         setLoading(true);
         const eventSource = new EventSource(
-            `http://localhost:5001/api/connect/${id}`
+            `/api/connect/${id}`,
+            { withCredentials: true }
         );
         eventSource.onopen = (e) => {
             setLoading(false);

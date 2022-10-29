@@ -13,9 +13,19 @@ const EventEmitter = require('node:events').EventEmitter;
 app.use(cors());
 app.use(express.json());
 
+app.use((req, res, next) => {
+    res.append('X-CSE356', '630a7abf047a1139b66db8e3');
+    next();
+});
+
 app.use('/library', express.static('library'));
+app.use(express.static('build'));
 
 const myEmitter = new EventEmitter();
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
 
 app.get('/api/connect/:id', async (req, res) => {
     const { id } = req.params;
@@ -34,7 +44,7 @@ app.get('/api/connect/:id', async (req, res) => {
     res.write(`data: ${base64Encoded}`);
     res.write('\n\n');
 
-    myEmitter.on('receivedUpdate', (update) => {
+    myEmitter.on(`receivedUpdateFor=${id}`, (update) => {
         // console.log('sending update: ', update);
         res.write('event: update\n');
         res.write(`data: ${fromUint8Array(update)}`);
@@ -48,7 +58,7 @@ app.post('/api/op/:id', async (req, res) => {
     const updated = await persistence.storeUpdate(id, update);
     // console.log('store update res: ', updated);
     res.sendStatus(200);
-    myEmitter.emit('receivedUpdate', update);
+    myEmitter.emit(`receivedUpdateFor=${id}`, update);
 });
 
 app.listen(5001, () => {

@@ -22,7 +22,9 @@ exports.CRDT = class {
         this.ydoc = new Y.Doc();
         this.ytext = this.ydoc.getText();
         this.ydoc.on('update', (update: any) => {
-            this.currUpdate = fromUint8Array(update);
+            this.currUpdate = JSON.stringify({
+                update: fromUint8Array(update),
+            });
         });
     }
 
