@@ -5,9 +5,16 @@ type PropType = {
     id: any;
     setId: (data: any) => void;
     setSyncValue: (data: any) => void;
+    setUpdateValue: (data: any) => void;
 };
 
-function ConnectForm({ setDocOpen, id, setId, setSyncValue }: PropType) {
+function ConnectForm({
+    setDocOpen,
+    id,
+    setId,
+    setSyncValue,
+    setUpdateValue,
+}: PropType) {
     const [loading, setLoading] = useState(false);
 
     const connect = async (e: React.SyntheticEvent) => {
@@ -16,14 +23,16 @@ function ConnectForm({ setDocOpen, id, setId, setSyncValue }: PropType) {
         const eventSource = new EventSource(
             `http://localhost:5001/api/connect/${id}`
         );
-        // eventSource.onopen = (e) => {
-        //     setLoading(false);
-        //     setDocOpen(true);
-        // };
-        eventSource.addEventListener('sync', (e) => {
+        eventSource.onopen = (e) => {
             setLoading(false);
-            setSyncValue(e.data);
             setDocOpen(true);
+        };
+        eventSource.addEventListener('sync', (e) => {
+            setSyncValue(e.data);
+        });
+        eventSource.addEventListener('update', (e) => {
+            console.log('received incremental update: ', e.data);
+            setUpdateValue(e.data);
         });
     };
 

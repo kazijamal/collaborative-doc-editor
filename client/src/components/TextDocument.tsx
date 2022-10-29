@@ -9,9 +9,10 @@ import { fromUint8Array, toUint8Array } from 'js-base64';
 type PropType = {
     id: any;
     syncValue: any;
+    updateValue: any;
 };
 
-const TextDocument = ({ id, syncValue }: PropType) => {
+const TextDocument = ({ id, syncValue, updateValue }: PropType) => {
     let editor: any = null;
     let quillRef: any = null;
 
@@ -20,8 +21,8 @@ const TextDocument = ({ id, syncValue }: PropType) => {
         attachQuillRefs();
         const ydoc = new Y.Doc();
         const ytext = ydoc.getText('quill');
-        const binaryEncoded = toUint8Array(syncValue);
-        Y.applyUpdate(ydoc, binaryEncoded);
+        const syncEncoded = toUint8Array(syncValue);
+        Y.applyUpdate(ydoc, syncEncoded);
         new QuillBinding(ytext, editor);
         ydoc.on('update', async (update) => {
             console.log('sending update: ', update);
