@@ -1,20 +1,15 @@
 import React, { useState } from 'react';
+import * as Y from 'yjs';
+import { toUint8Array } from 'js-base64';
 
 type PropType = {
     setDocOpen: (data: boolean) => void;
     id: any;
     setId: (data: any) => void;
-    setSyncValue: (data: any) => void;
-    setUpdateValue: (data: any) => void;
+    ydoc: any;
 };
 
-function ConnectForm({
-    setDocOpen,
-    id,
-    setId,
-    setSyncValue,
-    setUpdateValue,
-}: PropType) {
+function ConnectForm({ setDocOpen, id, setId, ydoc }: PropType) {
     const [loading, setLoading] = useState(false);
 
     const connect = async (e: React.SyntheticEvent) => {
@@ -28,11 +23,12 @@ function ConnectForm({
             setDocOpen(true);
         };
         eventSource.addEventListener('sync', (e) => {
-            setSyncValue(e.data);
+            const syncEncoded = toUint8Array(e.data);
+            Y.applyUpdate(ydoc, syncEncoded);
         });
         eventSource.addEventListener('update', (e) => {
-            console.log('received incremental update: ', e.data);
-            setUpdateValue(e.data);
+            const updateEncoded = toUint8Array(e.data);
+            Y.applyUpdate(ydoc, updateEncoded);
         });
     };
 

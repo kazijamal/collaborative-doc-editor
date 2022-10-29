@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import * as Y from 'yjs';
 
 import TextDocument from './components/TextDocument';
 import ConnectForm from './components/ConnectForm';
@@ -6,18 +7,16 @@ import ConnectForm from './components/ConnectForm';
 function App() {
     const [docOpen, setDocOpen] = useState(false);
     const [id, setId] = useState('');
-    const [syncValue, setSyncValue] = useState('');
-    const [updateValue, setUpdateValue] = useState('');
+    const [ydoc, setYdoc] = useState(new Y.Doc());
 
     return docOpen ? (
-        <TextDocument id={id} syncValue={syncValue} updateValue={updateValue} />
+        <TextDocument id={id} ydoc={ydoc} />
     ) : (
         <ConnectForm
             setDocOpen={setDocOpen}
             id={id}
             setId={setId}
-            setSyncValue={setSyncValue}
-            setUpdateValue={setUpdateValue}
+            ydoc={ydoc}
         />
     );
 }

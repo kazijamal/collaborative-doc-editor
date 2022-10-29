@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 import { QuillDeltaToHtmlConverter } from 'quill-delta-to-html';
-import { toUint8Array } from 'js-base64';
+import { fromUint8Array, toUint8Array } from 'js-base64';
 
 class CRDTFormat {
     public bold?: Boolean = false;
@@ -12,6 +12,7 @@ exports.CRDT = class {
     cb: any;
     ydoc: any;
     ytext: any;
+    currUpdate: any;
 
     constructor(cb: (update: string, isLocal: Boolean) => void) {
         ['update', 'insert', 'delete', 'toHTML'].forEach(
@@ -20,14 +21,9 @@ exports.CRDT = class {
         this.cb = cb;
         this.ydoc = new Y.Doc();
         this.ytext = this.ydoc.getText();
-
-        // testing update
-        // const diffdoc = new Y.Doc();
-        // const difftext = diffdoc.getText();
-        // difftext.insert(0, 'feskofmesklfmesklfm', { bold: true });
-        // const diff = Y.encodeStateAsUpdate(diffdoc);
-        // const base64Encoded = fromUint8Array(diff);
-        // this.update(base64Encoded);
+        this.ydoc.on('update', (update: any) => {
+            this.currUpdate = fromUint8Array(update);
+        });
     }
 
     update(update: string) {
@@ -38,12 +34,12 @@ exports.CRDT = class {
 
     insert(index: number, content: string, format: CRDTFormat) {
         this.ytext.insert(index, content, format);
-        this.cb(`insert ${content} at index ${index}`, true);
+        this.cb(this.currUpdate, true);
     }
 
     delete(index: number, length: number) {
         this.ytext.delete(index, length);
-        this.cb(`delete at index ${index}`, true);
+        this.cb(this.currUpdate, true);
     }
 
     toHTML() {

@@ -23,7 +23,7 @@ app.get('/api/connect/:id', async (req, res) => {
     const documentState = Y.encodeStateAsUpdate(ydoc);
     const base64Encoded = fromUint8Array(documentState);
 
-    console.log('sending sync: ', base64Encoded);
+    // console.log('sending sync: ', base64Encoded);
     res.writeHead(200, {
         Connection: 'keep-alive',
         'Content-Type': 'text/event-stream',
@@ -35,7 +35,7 @@ app.get('/api/connect/:id', async (req, res) => {
     res.write('\n\n');
 
     myEmitter.on('receivedUpdate', (update) => {
-        console.log('sending update: ', update);
+        // console.log('sending update: ', update);
         res.write('event: update\n');
         res.write(`data: ${fromUint8Array(update)}`);
         res.write('\n\n');
@@ -46,23 +46,9 @@ app.post('/api/op/:id', async (req, res) => {
     const { id } = req.params;
     const update = toUint8Array(req.body.update);
     const updated = await persistence.storeUpdate(id, update);
-    console.log('store update res: ', updated);
+    // console.log('store update res: ', updated);
     res.sendStatus(200);
     myEmitter.emit('receivedUpdate', update);
-});
-
-app.get('/', async (req, res) => {
-    const ydoc = new Y.Doc();
-    ydoc.getArray('arr').insert(0, [1, 2, 3]);
-    ydoc.getArray('arr').toArray(); // => [1, 2, 3]
-    persistence.storeUpdate('my-doc', Y.encodeStateAsUpdate(ydoc));
-    const gotdoc1 = await persistence.getYDoc('no-exist');
-    console.log(gotdoc1);
-    console.log(gotdoc1.store.clients.length);
-    const gotdoc2 = await persistence.getYDoc('my-doc');
-    console.log(gotdoc2);
-    console.log(gotdoc2.store.clients.length);
-    res.send('egsiognesoignsjk');
 });
 
 app.listen(5001, () => {
