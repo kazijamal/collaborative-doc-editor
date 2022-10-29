@@ -1,28 +1,35 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
+import * as Y from 'yjs';
+import { QuillBinding } from 'y-quill';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
-function TextDocument() {
-    const [value, setValue] = useState('');
+const TextDocument = () => {
+    let quillRef: any = null;
+    let reactQuillRef: any = null;
 
-    const modules = {
-        toolbar: [['bold', 'italic', 'underline']],
+    useEffect(() => {
+        attachQuillRefs();
+        const ydoc = new Y.Doc();
+        const ytext = ydoc.getText('quill');
+        new QuillBinding(ytext, quillRef);
+    }, []);
+
+    const attachQuillRefs = () => {
+        if (typeof reactQuillRef.getEditor !== 'function') return;
+        quillRef = reactQuillRef.getEditor();
     };
-
-    const formats = ['bold, italic, underline'];
 
     return (
         <div>
-            <h1>Text Document</h1>
             <ReactQuill
-                theme='snow'
-                value={value}
-                onChange={setValue}
-                modules={modules}
-                formats={formats}
+                ref={(e) => {
+                    reactQuillRef = e;
+                }}
+                theme={'snow'}
             />
         </div>
     );
-}
+};
 
 export default TextDocument;
