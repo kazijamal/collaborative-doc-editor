@@ -1,27 +1,28 @@
 import React, { useState } from 'react';
 import * as Y from 'yjs';
 import { toUint8Array } from 'js-base64';
+import { useNavigate } from 'react-router-dom';
 
 type PropType = {
-    setDocOpen: (data: boolean) => void;
     id: any;
     setId: (data: any) => void;
-    ydoc: any;
+    ydoc: Y.Doc;
+    url_prefix: string;
 };
 
-function ConnectForm({ setDocOpen, id, setId, ydoc }: PropType) {
+function ConnectForm({id, setId, ydoc, url_prefix }: PropType) {
+    let navigate = useNavigate();
     const [loading, setLoading] = useState(false);
 
     const connect = async (e: React.SyntheticEvent) => {
         e.preventDefault();
         setLoading(true);
         const eventSource = new EventSource(
-            `/api/connect/${id}`,
-            { withCredentials: true }
+            `${url_prefix}/api/connect/${id}`,
         );
         eventSource.onopen = (e) => {
             setLoading(false);
-            setDocOpen(true);
+            navigate("/textdocument");
         };
         eventSource.addEventListener('sync', (e) => {
             const syncEncoded = toUint8Array(e.data);

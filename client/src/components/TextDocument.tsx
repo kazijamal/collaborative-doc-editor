@@ -4,13 +4,15 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import axios from 'axios';
 import { fromUint8Array } from 'js-base64';
+import * as Y from 'yjs';
 
 type PropType = {
     id: any;
-    ydoc: any;
+    ydoc: Y.Doc;
+    url_prefix: string;
 };
 
-const TextDocument = ({ id, ydoc }: PropType) => {
+const TextDocument = ({ id, ydoc, url_prefix }: PropType) => {
     let editor: any = null;
     let quillRef: any = null;
 
@@ -19,7 +21,7 @@ const TextDocument = ({ id, ydoc }: PropType) => {
         const ytext = ydoc.getText('quill');
         new QuillBinding(ytext, editor);
         ydoc.on('update', async (update: any) => {
-            await axios.post(`/api/op/${id}`, {
+            await axios.post(`${url_prefix}/api/op/${id}`, {
                 update: fromUint8Array(update),
             });
         });

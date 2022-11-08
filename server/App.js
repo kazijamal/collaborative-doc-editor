@@ -6,8 +6,6 @@ const LeveldbPersistence = require('y-leveldb').LeveldbPersistence;
 const persistence = new LeveldbPersistence('./leveldb');
 const toUint8Array = require('js-base64').toUint8Array;
 const fromUint8Array = require('js-base64').fromUint8Array;
-const QuillDeltaToHtmlConverter =
-    require('quill-delta-to-html').QuillDeltaToHtmlConverter;
 const EventEmitter = require('node:events').EventEmitter;
 
 app.use(cors());
@@ -55,12 +53,13 @@ app.get('/api/connect/:id', async (req, res) => {
 app.post('/api/op/:id', async (req, res) => {
     const { id } = req.params;
     const update = toUint8Array(req.body.update);
-    const updated = await persistence.storeUpdate(id, update);
+    await persistence.storeUpdate(id, update);
     // console.log('store update res: ', updated);
     res.sendStatus(200);
     myEmitter.emit(`receivedUpdateFor=${id}`, update);
 });
 
-app.listen(5001, () => {
-    console.log('Listening on port 5001...');
+const port = 5001;
+app.listen(port, () => {
+    console.log(`Listening on port ${port}...`);
 });
