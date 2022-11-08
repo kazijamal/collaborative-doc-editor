@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Routes, Route, Link } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import * as Y from 'yjs';
 
 import TextDocument from './components/TextDocument';
-import ConnectForm from './components/ConnectForm';
+import Home from './components/Home';
 import Landing from './components/Landing';
 import Login from './components/Login';
 import Register from './components/Register';
@@ -18,12 +18,14 @@ function App() {
 
     return (
         <Routes>
-            <Route index element={<Landing />} />
+            <Route index element={<Landing/>} />
+            <Route path="register" element={<Register url_prefix={url_prefix}/>} />
+            <Route path="login" element={<Login url_prefix={url_prefix}/>} />
             <Route path="textdocument" element={
                 <TextDocument id={id} ydoc={ydoc} url_prefix={url_prefix}/>
             }/>
-            <Route path="connectform" element={
-                <ConnectForm
+            <Route path="home" element={
+                <Home
                     id={id}
                     setId={setId}
                     ydoc={ydoc}
@@ -31,10 +33,6 @@ function App() {
             }/>
         </Routes>
     )
-    // return docOpen ? (
-    //     <TextDocument id={id} ydoc={ydoc} url_prefix={url_prefix}/>
-    // ) : (
-    // );
 }
 
 export default App;

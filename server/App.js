@@ -59,6 +59,23 @@ app.post('/api/op/:id', async (req, res) => {
     myEmitter.emit(`receivedUpdateFor=${id}`, update);
 });
 
+// login routes (use router later?)
+app.post('/users/signup', async (req, res) => {
+    res.send('todo');
+});
+
+app.post('/users/login', async (req, res) => {
+    res.send('todo');
+});
+
+app.post('/users/logout', (req, res) => {
+    res.send('todo');
+});
+
+app.get('/users/verify', async (req, res) => {
+    res.send('todo');
+});
+
 const port = 5001;
 app.listen(port, () => {
     console.log(`Listening on port ${port}...`);
