@@ -1,4 +1,7 @@
 const express = require('express');
+const mongoose = require('mongoose');
+const session = require('express-session');
+const nodemailer = require('nodemailer');
 const app = express();
 const cors = require('cors');
 const Y = require('yjs');
@@ -8,6 +11,7 @@ const toUint8Array = require('js-base64').toUint8Array;
 const fromUint8Array = require('js-base64').fromUint8Array;
 const EventEmitter = require('node:events').EventEmitter;
 
+// middleware
 app.use(cors());
 app.use(express.json());
 
@@ -18,6 +22,22 @@ app.use((req, res, next) => {
 
 app.use('/library', express.static('library'));
 app.use(express.static('build'));
+
+// db
+const User = require('./models/User');
+const mongoDB = 'mongodb://127.0.0.1';
+const clientPromise = mongoose
+    .connect(mongoDB, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(m => m.connection.getClient());
+const db = mongoose.connection;
+db.on('error', console.error.bind(console, 'MongoDB connection error'));
+
+// nodemailer
+const transporter = nodemailer.createTransport({
+    sendmail: true,
+    newline: 'unix',
+    pat: '/usr/sbin/sendmail',
+});
 
 const myEmitter = new EventEmitter();
 
@@ -61,19 +81,55 @@ app.post('/api/op/:id', async (req, res) => {
 
 // login routes (use router later?)
 app.post('/users/signup', async (req, res) => {
-    res.send('todo');
+    const { name, password, email } = req.body.values;
+    if ((await User.findOne( { email : email })) !== null) 
+        return res.send({ error: true, message: 'user email already exists'});
+    
+    
+    const newUser = new User({name, password, email, verified: true});
+    const _id = (await newUser.save())._id;
+    const encodedID = encodeURIComponent(_id);
+    const verifyUrl = `http://bkmj.cse356.compas.cs.stonybrook.edu/verify?key=${encodedID}`
+
+    // ADD EMAIL LATER
+
+    // transporter.sendMail({
+    //     to: user.email,
+    //     from: '"burger king michael jackson" <mail@bkmj.cse356.compas.cs.stonybrook.edu>',
+    //     subject: 'Verify Email for Googly Docs',
+    //     text: verifyUrl,
+    //     html: `<a href=${verifyUrl}>${verifyUrl}</a>`,
+    // });
+    return res.send('CHANGE VERIFIED TO FALSE LATER');
+});
+
+app.get('/verify', async (req, res) => {
+    const _id = req.query.key;
+    const user = await User.findById(_id);
+    if (user === null) 
+        return res.send({ error: true, message: 'incorrect key for email verification'});
+    
+    user.verified = true;
+    await user.save();
+    return res.send({ status: 'OK' });
 });
 
 app.post('/users/login', async (req, res) => {
-    res.send('todo');
+    const { email, password } = req.body.values;
+    const user = await User.findOne({ email: email, password: password, verified: true});
+    if (user === null)
+        return res.send({ error: true, message: 'login failed' });
+
+    req.session._id = user._id;
+    return res.send({ status: 'OK' });
 });
 
 app.post('/users/logout', (req, res) => {
-    res.send('todo');
+    return res.send('todo');
 });
 
 app.get('/users/verify', async (req, res) => {
-    res.send('todo');
+    return res.send('todo');
 });
 
 const port = 5001;
