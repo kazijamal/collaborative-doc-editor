@@ -4,6 +4,7 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import axios from 'axios';
 import { fromUint8Array } from 'js-base64';
+import { Link } from 'react-router-dom';
 import * as Y from 'yjs';
 
 type PropType = {
@@ -40,6 +41,7 @@ const TextDocument = ({ id, ydoc, url_prefix }: PropType) => {
                 }}
                 theme={'snow'}
             />
+            <Link to="/home">Back to home</Link>
         </div>
     );
 };

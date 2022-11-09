@@ -1,5 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const MongoStore = require('connect-mongo');
 const session = require('express-session');
 const nodemailer = require('nodemailer');
 const app = express();
@@ -11,18 +12,6 @@ const toUint8Array = require('js-base64').toUint8Array;
 const fromUint8Array = require('js-base64').fromUint8Array;
 const EventEmitter = require('node:events').EventEmitter;
 
-// middleware
-app.use(cors());
-app.use(express.json());
-
-app.use((req, res, next) => {
-    res.append('X-CSE356', '630a7abf047a1139b66db8e3');
-    next();
-});
-
-app.use('/library', express.static('library'));
-app.use(express.static('build'));
-
 // db
 const User = require('./models/User');
 const mongoDB = 'mongodb://127.0.0.1';
@@ -32,6 +21,28 @@ const clientPromise = mongoose
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error'));
 
+// middleware
+app.use(cors());
+app.use(express.json());
+
+app.use((req, res, next) => {
+    res.append('X-CSE356', '630a7abf047a1139b66db8e3');
+    next();
+});
+app.use(
+    session({
+        secret: 'secret key',
+        cookie: {},
+        resave: false,
+        saveUninitialized: false,
+        store: MongoStore.create({ clientPromise: clientPromise })
+    })
+);
+
+app.use('/library', express.static('library'));
+app.use(express.static('build'));
+
+
 // nodemailer
 const transporter = nodemailer.createTransport({
     sendmail: true,
@@ -40,6 +51,7 @@ const transporter = nodemailer.createTransport({
 });
 
 const myEmitter = new EventEmitter();
+const mostRecentDocs = [];
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
@@ -47,6 +59,12 @@ app.get('/', (req, res) => {
 
 app.get('/api/connect/:id', async (req, res) => {
     const { id } = req.params;
+
+    const index = mostRecentDocs.indexOf(id);
+    if (index > -1)
+        mostRecentDocs.splice(index, 1);
+    mostRecentDocs.push(id);
+
     const ydoc = await persistence.getYDoc(id);
     const documentState = Y.encodeStateAsUpdate(ydoc);
     const base64Encoded = fromUint8Array(documentState);
@@ -124,12 +142,25 @@ app.post('/users/login', async (req, res) => {
     return res.send({ status: 'OK' });
 });
 
-app.post('/users/logout', (req, res) => {
+app.post('/users/logout', async (req, res) => {
+    // const result = await req.session.destroy();
+    // console.log(result);
     return res.send('todo');
 });
 
-app.get('/users/verify', async (req, res) => {
+app.post('/collection/create', async (req, res) => {
+    
     return res.send('todo');
+});
+
+app.post('/collection/delete', async (req, res) => {
+    return res.send('todo');
+});
+
+app.post('/collection/list', async (req, res) => {
+    // const docs = await persistence.getAllDocNames();
+    // console.log(docs);
+    return res.send(mostRecentDocs);
 });
 
 const port = 5001;
