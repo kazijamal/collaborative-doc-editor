@@ -53,7 +53,14 @@ const transporter = nodemailer.createTransport({
 });
 
 const myEmitter = new EventEmitter();
-const mostRecentDocs = [];
+// keep a single DocData object, array of docs. Create it if it does not exist
+(async () => {
+    let docData = await DocData.findOne();
+    if (docData === null) {
+        docData = new DocData();
+        docData.save();
+    }
+})();
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
@@ -62,11 +69,13 @@ app.get('/', (req, res) => {
 app.get('/api/connect/:id', async (req, res) => {
     const { id } = req.params;
 
-    console.log('connect to ' + id);
+    // console.log('connect to ' + id);
+    const { _id, mostRecentDocs } = await DocData.findOne();
     const index = mostRecentDocs.indexOf(id);
     if (index > -1)
         mostRecentDocs.splice(index, 1);
     mostRecentDocs.push(id);
+    await DocData.findByIdAndUpdate(_id, { mostRecentDocs: mostRecentDocs });
 
     const ydoc = await persistence.getYDoc(id);
     const documentState = Y.encodeStateAsUpdate(ydoc);
@@ -148,22 +157,29 @@ app.post('/users/login', async (req, res) => {
 
 app.post('/users/logout', async (req, res) => {
     const result = await req.session.destroy();
-    // console.log(result);
     return res.send('todo');
 });
 
 app.post('/collection/create', async (req, res) => {
-    
-    return res.send('todo');
+    return res.send('do we need to do?');
 });
 
 app.post('/collection/delete', async (req, res) => {
-    return res.send('todo');
+    const { id } = req.body;
+    const { _id, mostRecentDocs } = await DocData.findOne();
+    const index = mostRecentDocs.indexOf(id);
+    // if we are deleting a doc which exists
+    if (index > -1) {
+        mostRecentDocs.splice(index, 1);
+        await DocData.findByIdAndUpdate(_id, { mostRecentDocs: mostRecentDocs });
+        return res.send({ error: false });
+    }
+    return res.send({ error: true, message: 'tried to delete doc that does not exist'});
 });
 
 app.post('/collection/list', async (req, res) => {
     // const docs = await persistence.getAllDocNames();
-    console.log(mostRecentDocs);
+    const { _id, mostRecentDocs } = await DocData.findOne();
     return res.send(mostRecentDocs);
 });
 
