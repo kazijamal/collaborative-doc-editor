@@ -14,6 +14,8 @@ const EventEmitter = require('node:events').EventEmitter;
 
 // db
 const User = require('./models/User');
+const DocData = require('./models/DocData');
+
 const mongoDB = 'mongodb://127.0.0.1';
 const clientPromise = mongoose
     .connect(mongoDB, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -60,6 +62,7 @@ app.get('/', (req, res) => {
 app.get('/api/connect/:id', async (req, res) => {
     const { id } = req.params;
 
+    console.log('connect to ' + id);
     const index = mostRecentDocs.indexOf(id);
     if (index > -1)
         mostRecentDocs.splice(index, 1);
@@ -90,6 +93,7 @@ app.get('/api/connect/:id', async (req, res) => {
 
 app.post('/api/op/:id', async (req, res) => {
     const { id } = req.params;
+    console.log('update to ' + id);
     const update = toUint8Array(req.body.update);
     await persistence.storeUpdate(id, update);
     // console.log('store update res: ', updated);
@@ -143,7 +147,7 @@ app.post('/users/login', async (req, res) => {
 });
 
 app.post('/users/logout', async (req, res) => {
-    // const result = await req.session.destroy();
+    const result = await req.session.destroy();
     // console.log(result);
     return res.send('todo');
 });
@@ -159,7 +163,7 @@ app.post('/collection/delete', async (req, res) => {
 
 app.post('/collection/list', async (req, res) => {
     // const docs = await persistence.getAllDocNames();
-    // console.log(docs);
+    console.log(mostRecentDocs);
     return res.send(mostRecentDocs);
 });
 
