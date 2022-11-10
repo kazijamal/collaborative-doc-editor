@@ -172,6 +172,7 @@ app.post('/collection/delete', async (req, res) => {
     if (index > -1) {
         mostRecentDocs.splice(index, 1);
         await DocData.findByIdAndUpdate(_id, { mostRecentDocs: mostRecentDocs });
+        await persistence.clearDocument(id);
         return res.send({ error: false });
     }
     return res.send({ error: true, message: 'tried to delete doc that does not exist'});
@@ -179,8 +180,12 @@ app.post('/collection/delete', async (req, res) => {
 
 app.post('/collection/list', async (req, res) => {
     // const docs = await persistence.getAllDocNames();
-    const { _id, mostRecentDocs } = await DocData.findOne();
-    return res.send(mostRecentDocs);
+    let { _id, mostRecentDocs } = await DocData.findOne();
+    if (mostRecentDocs.length > 10)
+        mostRecentDocs = mostRecentDocs.slice(-10);
+    const toSend = mostRecentDocs.map(docName => {return { id: docName, name: docName }});
+    console.log(toSend);
+    return res.send(toSend);
 });
 
 const port = 5001;
