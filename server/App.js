@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const MongoStore = require('connect-mongo');
 const session = require('express-session');
+const cookieParser = require('cookie-parser');
 const nodemailer = require('nodemailer');
 const app = express();
 const cors = require('cors');
@@ -24,25 +25,35 @@ const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error'));
 
 // middleware
-app.use(cors());
+app.use(cors({ credentials: true, origin: 'http://localhost:3000', exposedHeaders: ['set-cookie'] }));
 app.use(express.json());
 
 app.use((req, res, next) => {
     res.append('X-CSE356', '630a7abf047a1139b66db8e3');
     next();
 });
+app.use(cookieParser());
 app.use(
     session({
         secret: 'secret key',
-        cookie: {},
+        cookie: { secure: false },
         resave: false,
         saveUninitialized: false,
-        store: MongoStore.create({ clientPromise: clientPromise })
+        // store: MongoStore.create({ clientPromise: clientPromise })
     })
 );
 
 app.use('/library', express.static('library'));
 app.use(express.static('build'));
+app.use((req, res, next) => {
+    console.log('id on ' + req.path, req.session._id)
+    if (req.path.includes("login") || (req.session && req.session._id)) {
+        next();
+    }
+    else {
+        return res.send({ error: true, message: 'user is not authenticated' })
+    }
+});
 
 
 // nodemailer
@@ -72,8 +83,10 @@ app.get('/api/connect/:id', async (req, res) => {
     // console.log('connect to ' + id);
     const { _id, mostRecentDocs } = await DocData.findOne();
     const index = mostRecentDocs.indexOf(id);
-    if (index > -1)
-        mostRecentDocs.splice(index, 1);
+    if (index <= -1) {
+        return res.send({ error: true, message: 'doc does not exist' })
+    }
+    mostRecentDocs.splice(index, 1);
     mostRecentDocs.push(id);
     await DocData.findByIdAndUpdate(_id, { mostRecentDocs: mostRecentDocs });
 
@@ -150,9 +163,11 @@ app.post('/users/login', async (req, res) => {
     const user = await User.findOne({ email: email, password: password, verified: true});
     if (user === null)
         return res.send({ error: true, message: 'login failed' });
-
-    req.session._id = user._id;
-    return res.send({ status: 'OK' });
+    req.session._id = user._id.toString();
+    req.session.save(() => {
+        console.log('id after login: ', req.session._id);
+        res.send({ status: 'OK' });
+    });
 });
 
 app.post('/users/logout', async (req, res) => {
@@ -161,7 +176,12 @@ app.post('/users/logout', async (req, res) => {
 });
 
 app.post('/collection/create', async (req, res) => {
-    return res.send('do we need to do?');
+    const { name } = req.body;
+    const { _id, mostRecentDocs } = await DocData.findOne();
+    mostRecentDocs.push(name);
+    await DocData.findByIdAndUpdate(_id, { mostRecentDocs: mostRecentDocs });
+
+    return res.send({ error: false });
 });
 
 app.post('/collection/delete', async (req, res) => {
@@ -186,6 +206,12 @@ app.post('/collection/list', async (req, res) => {
     const toSend = mostRecentDocs.map(docName => {return { id: docName, name: docName }});
     console.log(toSend);
     return res.send(toSend);
+});
+
+app.post('/collection/exists', async (req, res) => {
+    let { id } = req.body;
+    let { _id, mostRecentDocs } = await DocData.findOne();
+    return res.send({ exists: mostRecentDocs.includes(id) })
 });
 
 const port = 5001;
