@@ -3,39 +3,44 @@ import { QuillBinding } from 'y-quill';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import axios from 'axios';
-import { fromUint8Array } from 'js-base64';
+import { fromUint8Array, toUint8Array } from 'js-base64';
 import { Link, useParams } from 'react-router-dom';
 
 type PropType = {
     ydoc: any;
     url_prefix: string;
-    source: any
+    source: any;
 };
 
 const Edit = ({ ydoc, url_prefix, source }: PropType) => {
     const { id } = useParams();
-    console.log(id);
     let editor: any = null;
     let quillRef: any = null;
 
     useEffect(() => {
+        source.addEventListener('update', (e: any) => {
+            const updateEncoded = toUint8Array(e.data);
+            Y.applyUpdate(ydoc, updateEncoded);
+        });
         attachQuillRefs();
         const ytext = ydoc.getText('quill');
         new QuillBinding(ytext, editor);
         ydoc.on('update', async (update: any) => {
             console.log('update with id', id);
-            await axios.post(`${url_prefix}/api/op/${id}`, {
-                update: fromUint8Array(update),
-            }, 
-            { withCredentials: true }
+            await axios.post(
+                `${url_prefix}/api/op/${id}`,
+                {
+                    update: fromUint8Array(update),
+                },
+                { withCredentials: true }
             );
-        }); 
+        });
     }, []);
 
     const disconnect = () => {
         ydoc.destroy();
         source.close();
-    }
+    };
 
     const attachQuillRefs = () => {
         if (typeof quillRef.getEditor !== 'function') return;
@@ -51,7 +56,9 @@ const Edit = ({ ydoc, url_prefix, source }: PropType) => {
                 }}
                 theme={'snow'}
             />
-            <Link onClick={disconnect} to="/home">Back to home</Link>
+            <Link onClick={disconnect} to='/home'>
+                Back to home
+            </Link>
         </div>
     );
 };

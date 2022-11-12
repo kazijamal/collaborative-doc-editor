@@ -9,81 +9,93 @@ type PropType = {
     setYdoc: any;
     url_prefix: string;
     source: any;
-    setSource: any
+    setSource: any;
 };
 
-const Home = ({ydoc, setYdoc, url_prefix, source, setSource }: PropType) => {
+const Home = ({ ydoc, setYdoc, url_prefix, source, setSource }: PropType) => {
     let navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [docs, setDocs] = useState([]);
     const [error, setError] = useState('');
     const [id, setId] = useState('');
 
-    const create = async (e: React.SyntheticEvent, doc: string) => { 
+    const create = async (e: React.SyntheticEvent, doc: string) => {
         e.preventDefault();
         // is collection/create necessary?
-        await axios.post(`${url_prefix}/collection/create`, { name: doc }, { withCredentials: true });
-        // console.log(result);
+        await axios.post(
+            `${url_prefix}/collection/create`,
+            { name: doc },
+            { withCredentials: true }
+        );
         await connect(doc);
-    }
+    };
 
     const connect = async (doc: string) => {
         setLoading(true);
-        const docExists = await axios.post(`${url_prefix}/collection/exists`, { id: doc }, { withCredentials: true });
-        // console.log(docExists.data.exists);
+        const docExists = await axios.post(
+            `${url_prefix}/collection/exists`,
+            { id: doc },
+            { withCredentials: true }
+        );
         if (docExists.data.exists) {
             const eventSource = new EventSource(
                 `${url_prefix}/api/connect/${doc}`,
-                { withCredentials: true}
+                { withCredentials: true }
             );
             eventSource.onopen = () => {
-                // setYdoc(new Y.Doc());
-                // console.log('open')
+                setSource(eventSource);
+                console.log('open');
             };
             eventSource.addEventListener('sync', (e: any) => {
                 const syncEncoded = toUint8Array(e.data);
-                // console.log('ydoc', ydoc);
                 const newDoc = new Y.Doc();
                 Y.applyUpdate(newDoc, syncEncoded);
                 setYdoc(newDoc);
-                setLoading(false);                
+                setLoading(false);
                 navigate(`/edit/${doc}`);
             });
-            eventSource.addEventListener('update', (e: any) => {
-                const updateEncoded = toUint8Array(e.data);
-                Y.applyUpdate(ydoc, updateEncoded);
-            });
-            setSource(eventSource);
-        }
-        else {
+        } else {
             setError('tried to connect to non-existing document');
         }
     };
 
     const deleteDoc = async (doc: string) => {
-        const result = await axios.post(`${url_prefix}/collection/delete`, { id: doc }, { withCredentials: true });
+        const result = await axios.post(
+            `${url_prefix}/collection/delete`,
+            { id: doc },
+            { withCredentials: true }
+        );
         if (result.data.error) {
             setError('tried to delete non-existing document');
+        } else {
+            setDocs(docs.filter((docName) => docName !== doc));
         }
-        else {
-            setDocs(docs.filter(docName => docName !== doc));
-        }
-    }
+    };
 
     useEffect(() => {
         (async () => {
-            let result = (await axios.post(`${url_prefix}/collection/list`, {}, { withCredentials: true })).data;
+            let result = (
+                await axios.post(
+                    `${url_prefix}/collection/list`,
+                    {},
+                    { withCredentials: true }
+                )
+            ).data;
             console.log(result);
-            result = result.map((doc: {id: string, name: string}) => doc.id);
+            result = result.map((doc: { id: string; name: string }) => doc.id);
             setDocs(result);
         })();
     }, []);
 
     const onLogout = async () => {
-        const res = await axios.post(`${url_prefix}/users/logout`, {}, { withCredentials: true });
+        const res = await axios.post(
+            `${url_prefix}/users/logout`,
+            {},
+            { withCredentials: true }
+        );
         console.log(res);
-        navigate("/");
-    }
+        navigate('/');
+    };
 
     return loading ? (
         <p>Connecting...</p>
@@ -97,9 +109,9 @@ const Home = ({ydoc, setYdoc, url_prefix, source, setSource }: PropType) => {
                         <div onClick={() => connect(doc)}>{doc}</div>
                         <button onClick={() => deleteDoc(doc)}>delete</button>
                     </div>
-                )
-            })} 
-            <form onSubmit={e => create(e, id)}>
+                );
+            })}
+            <form onSubmit={(e) => create(e, id)}>
                 <label>
                     Create doc
                     <input
@@ -113,9 +125,11 @@ const Home = ({ydoc, setYdoc, url_prefix, source, setSource }: PropType) => {
                 <br></br>
                 <input type='submit' />
             </form>
-            <Link onClick={() => onLogout()} to="/">Logout</Link>
+            <Link onClick={() => onLogout()} to='/'>
+                Logout
+            </Link>
         </div>
     );
-}
+};
 
 export default Home;
