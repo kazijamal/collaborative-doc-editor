@@ -8,7 +8,7 @@ import { Link, useParams } from 'react-router-dom';
 import * as Y from 'yjs';
 
 type PropType = {
-    ydoc: Y.Doc;
+    ydoc: any;
     url_prefix: string;
     source: any
 };
@@ -30,8 +30,13 @@ const Edit = ({ ydoc, url_prefix, source }: PropType) => {
             }, 
             { withCredentials: true }
             );
-        });
+        }); 
     }, []);
+
+    const disconnect = () => {
+        ydoc.destroy();
+        source.close();
+    }
 
     const attachQuillRefs = () => {
         if (typeof quillRef.getEditor !== 'function') return;
@@ -46,7 +51,7 @@ const Edit = ({ ydoc, url_prefix, source }: PropType) => {
                 }}
                 theme={'snow'}
             />
-            <Link onClick={() => source.close()}to="/home">Back to home</Link>
+            <Link onClick={disconnect} to="/home">Back to home</Link>
         </div>
     );
 };

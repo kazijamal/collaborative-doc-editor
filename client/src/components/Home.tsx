@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 type PropType = {
-    ydoc: Y.Doc;
+    ydoc: any;
     setYdoc: any;
     url_prefix: string;
     source: any;
@@ -30,21 +30,24 @@ const Home = ({ydoc, setYdoc, url_prefix, source, setSource }: PropType) => {
     const connect = async (doc: string) => {
         setLoading(true);
         const docExists = await axios.post(`${url_prefix}/collection/exists`, { id: doc }, { withCredentials: true });
-        console.log(docExists.data.exists);
+        // console.log(docExists.data.exists);
         if (docExists.data.exists) {
             const eventSource = new EventSource(
                 `${url_prefix}/api/connect/${doc}`,
                 { withCredentials: true}
             );
             eventSource.onopen = () => {
-                setLoading(false);
-                navigate(`/edit/${doc}`);
+                // setYdoc(new Y.Doc());
+                // console.log('open')
             };
             eventSource.addEventListener('sync', (e: any) => {
                 const syncEncoded = toUint8Array(e.data);
-                const newDoc = new Y.Doc(); 
+                // console.log('ydoc', ydoc);
+                const newDoc = new Y.Doc();
                 Y.applyUpdate(newDoc, syncEncoded);
                 setYdoc(newDoc);
+                setLoading(false);                
+                navigate(`/edit/${doc}`);
             });
             eventSource.addEventListener('update', (e: any) => {
                 const updateEncoded = toUint8Array(e.data);

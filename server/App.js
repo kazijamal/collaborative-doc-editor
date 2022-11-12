@@ -28,7 +28,7 @@ const EventEmitter = require('node:events').EventEmitter;
 const User = require('./models/User');
 const DocData = require('./models/DocData');
 
-const mongoDB = 'mongodb://127.0.0.1';
+const mongoDB = 'mongodb://127.0.0.1/docs';
 const clientPromise = mongoose
     .connect(mongoDB, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(m => m.connection.getClient());
@@ -50,7 +50,7 @@ app.use(
         cookie: { secure: false },
         resave: false,
         saveUninitialized: false,
-        // store: MongoStore.create({ clientPromise: clientPromise })
+        store: MongoStore.create({ clientPromise: clientPromise })
     })
 );
 
