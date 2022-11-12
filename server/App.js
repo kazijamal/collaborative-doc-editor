@@ -147,21 +147,19 @@ app.post('/users/signup', async (req, res) => {
     const newUser = new User({ name, password, email, verified: true });
     const _id = (await newUser.save())._id;
     const encodedID = encodeURIComponent(_id);
-    const verifyUrl = `http://bkmj.cse356.compas.cs.stonybrook.edu/verify?key=${encodedID}`;
+    const verifyUrl = `http://bkmj.cse356.compas.cs.stonybrook.edu/users/verify?key=${encodedID}`;
 
-    // ADD EMAIL LATER
-
-    // transporter.sendMail({
-    //     to: user.email,
-    //     from: '"burger king michael jackson" <mail@bkmj.cse356.compas.cs.stonybrook.edu>',
-    //     subject: 'Verify Email for Googly Docs',
-    //     text: verifyUrl,
-    //     html: `<a href=${verifyUrl}>${verifyUrl}</a>`,
-    // });
-    return res.send('CHANGE VERIFIED TO FALSE LATER');
+    transporter.sendMail({
+        to: newUser.email,
+        from: '"burger king michael jackson" <mail@bkmj.cse356.compas.cs.stonybrook.edu>',
+        subject: 'Verify Email for Googly Docs',
+        text: verifyUrl,
+        html: `<a href=${verifyUrl}>${verifyUrl}</a>`,
+    });
+    return res.send({ status: 'OK' });
 });
 
-app.get('/verify', async (req, res) => {
+app.get('/users/verify', async (req, res) => {
     const _id = req.query.key;
     const user = await User.findById(_id);
     if (user === null)
