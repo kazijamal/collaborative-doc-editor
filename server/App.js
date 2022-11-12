@@ -1,3 +1,14 @@
+/*
+
+TODO
+- email
+- "presence" event
+- /media/upload
+- /media/access/:mediaid
+- insertImage(index: number, url: string)
+
+*/
+
 const express = require('express');
 const mongoose = require('mongoose');
 const MongoStore = require('connect-mongo');
@@ -47,7 +58,7 @@ app.use('/library', express.static('library'));
 app.use(express.static('build'));
 app.use((req, res, next) => {
     console.log('id on ' + req.path, req.session._id)
-    if (req.path.includes("login") || (req.session && req.session._id)) {
+    if (req.path.includes("users") || (req.session && req.session._id)) {
         next();
     }
     else {
