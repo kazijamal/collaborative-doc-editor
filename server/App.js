@@ -31,12 +31,18 @@ const DocData = require('./models/DocData');
 const mongoDB = 'mongodb://127.0.0.1/docs';
 const clientPromise = mongoose
     .connect(mongoDB, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(m => m.connection.getClient());
+    .then((m) => m.connection.getClient());
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error'));
 
 // middleware
-app.use(cors({ credentials: true, origin: 'http://localhost:3000', exposedHeaders: ['set-cookie'] }));
+app.use(
+    cors({
+        credentials: true,
+        origin: 'http://localhost:3000',
+        exposedHeaders: ['set-cookie'],
+    })
+);
 app.use(express.json());
 
 app.use((req, res, next) => {
@@ -50,22 +56,20 @@ app.use(
         cookie: { secure: false },
         resave: false,
         saveUninitialized: false,
-        store: MongoStore.create({ clientPromise: clientPromise })
+        store: MongoStore.create({ clientPromise: clientPromise }),
     })
 );
 
 app.use('/library', express.static('library'));
 app.use(express.static('build'));
 app.use((req, res, next) => {
-    console.log('id on ' + req.path, req.session._id)
-    if (req.path.includes("users") || (req.session && req.session._id)) {
+    console.log('id on ' + req.path, req.session._id);
+    if (req.path.includes('users') || (req.session && req.session._id)) {
         next();
-    }
-    else {
-        return res.send({ error: true, message: 'user is not authenticated' })
+    } else {
+        return res.send({ error: true, message: 'user is not authenticated' });
     }
 });
-
 
 // nodemailer
 const transporter = nodemailer.createTransport({
@@ -95,7 +99,7 @@ app.get('/api/connect/:id', async (req, res) => {
     const { _id, mostRecentDocs } = await DocData.findOne();
     const index = mostRecentDocs.indexOf(id);
     if (index <= -1) {
-        return res.send({ error: true, message: 'doc does not exist' })
+        return res.send({ error: true, message: 'doc does not exist' });
     }
     mostRecentDocs.splice(index, 1);
     mostRecentDocs.push(id);
@@ -137,14 +141,13 @@ app.post('/api/op/:id', async (req, res) => {
 // login routes (use router later?)
 app.post('/users/signup', async (req, res) => {
     const { name, password, email } = req.body.values;
-    if ((await User.findOne( { email : email })) !== null) 
-        return res.send({ error: true, message: 'user email already exists'});
-    
-    
-    const newUser = new User({name, password, email, verified: true});
+    if ((await User.findOne({ email: email })) !== null)
+        return res.send({ error: true, message: 'user email already exists' });
+
+    const newUser = new User({ name, password, email, verified: true });
     const _id = (await newUser.save())._id;
     const encodedID = encodeURIComponent(_id);
-    const verifyUrl = `http://bkmj.cse356.compas.cs.stonybrook.edu/verify?key=${encodedID}`
+    const verifyUrl = `http://bkmj.cse356.compas.cs.stonybrook.edu/verify?key=${encodedID}`;
 
     // ADD EMAIL LATER
 
@@ -161,9 +164,12 @@ app.post('/users/signup', async (req, res) => {
 app.get('/verify', async (req, res) => {
     const _id = req.query.key;
     const user = await User.findById(_id);
-    if (user === null) 
-        return res.send({ error: true, message: 'incorrect key for email verification'});
-    
+    if (user === null)
+        return res.send({
+            error: true,
+            message: 'incorrect key for email verification',
+        });
+
     user.verified = true;
     await user.save();
     return res.send({ status: 'OK' });
@@ -171,7 +177,11 @@ app.get('/verify', async (req, res) => {
 
 app.post('/users/login', async (req, res) => {
     const { email, password } = req.body.values;
-    const user = await User.findOne({ email: email, password: password, verified: true});
+    const user = await User.findOne({
+        email: email,
+        password: password,
+        verified: true,
+    });
     if (user === null)
         return res.send({ error: true, message: 'login failed' });
     req.session._id = user._id.toString();
@@ -183,7 +193,7 @@ app.post('/users/login', async (req, res) => {
 
 app.post('/users/logout', async (req, res) => {
     const result = await req.session.destroy();
-    return res.send('todo');
+    return res.send({ status: 'OK' });
 });
 
 app.post('/collection/create', async (req, res) => {
@@ -202,19 +212,25 @@ app.post('/collection/delete', async (req, res) => {
     // if we are deleting a doc which exists
     if (index > -1) {
         mostRecentDocs.splice(index, 1);
-        await DocData.findByIdAndUpdate(_id, { mostRecentDocs: mostRecentDocs });
+        await DocData.findByIdAndUpdate(_id, {
+            mostRecentDocs: mostRecentDocs,
+        });
         await persistence.clearDocument(id);
         return res.send({ error: false });
     }
-    return res.send({ error: true, message: 'tried to delete doc that does not exist'});
+    return res.send({
+        error: true,
+        message: 'tried to delete doc that does not exist',
+    });
 });
 
 app.post('/collection/list', async (req, res) => {
     // const docs = await persistence.getAllDocNames();
     let { _id, mostRecentDocs } = await DocData.findOne();
-    if (mostRecentDocs.length > 10)
-        mostRecentDocs = mostRecentDocs.slice(-10);
-    const toSend = mostRecentDocs.map(docName => {return { id: docName, name: docName }});
+    if (mostRecentDocs.length > 10) mostRecentDocs = mostRecentDocs.slice(-10);
+    const toSend = mostRecentDocs.map((docName) => {
+        return { id: docName, name: docName };
+    });
     console.log(toSend);
     return res.send(toSend);
 });
@@ -222,7 +238,7 @@ app.post('/collection/list', async (req, res) => {
 app.post('/collection/exists', async (req, res) => {
     let { id } = req.body;
     let { _id, mostRecentDocs } = await DocData.findOne();
-    return res.send({ exists: mostRecentDocs.includes(id) })
+    return res.send({ exists: mostRecentDocs.includes(id) });
 });
 
 const port = 5001;
