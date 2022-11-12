@@ -5,7 +5,6 @@ import 'react-quill/dist/quill.snow.css';
 import axios from 'axios';
 import { fromUint8Array } from 'js-base64';
 import { Link, useParams } from 'react-router-dom';
-import * as Y from 'yjs';
 
 type PropType = {
     ydoc: any;
@@ -45,6 +44,7 @@ const Edit = ({ ydoc, url_prefix, source }: PropType) => {
 
     return (
         <div>
+            
             <ReactQuill
                 ref={(e) => {
                     quillRef = e;
