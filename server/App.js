@@ -48,6 +48,7 @@ app.use(
     session({
         secret: 'secret key',
         cookie: { secure: false },
+        HttpOnly: false,
         resave: false,
         saveUninitialized: false,
         store: MongoStore.create({ clientPromise: clientPromise })
@@ -122,6 +123,12 @@ app.get('/api/connect/:id', async (req, res) => {
         res.write(`data: ${fromUint8Array(update)}`);
         res.write('\n\n');
     });
+    myEmitter.on(`receivedPresenceFor=${id}`, presence => {
+        
+        res.write('event: presence\n');
+        res.write(`data: ${JSON.stringify(presence)}`);
+        res.write('\n\n');
+    });
 });
 
 app.post('/api/op/:id', async (req, res) => {
@@ -134,6 +141,12 @@ app.post('/api/op/:id', async (req, res) => {
     myEmitter.emit(`receivedUpdateFor=${id}`, update);
 });
 
+app.post('/api/presence/:id', async (req, res) => {
+    const { id } = req.params;
+
+    res.sendStatus(200);
+    myEmitter.emit(`receivedPresenceFor=${id}`, req.body);
+})
 // login routes (use router later?)
 app.post('/users/signup', async (req, res) => {
     const { name, password, email } = req.body.values;
@@ -177,7 +190,7 @@ app.post('/users/login', async (req, res) => {
     req.session._id = user._id.toString();
     req.session.save(() => {
         console.log('id after login: ', req.session._id);
-        res.send({ status: 'OK' });
+        res.send({ name: user.name });
     });
 });
 

@@ -5,9 +5,10 @@ import axios from 'axios';
 
 type PropType = {
     url_prefix: string;
+    setName: any;
 };
 
-const Login = ({ url_prefix } : PropType) => {
+const Login = ({ url_prefix, setName } : PropType) => {
     let navigate = useNavigate();
     const [error, setError] = useState("");
     return (
@@ -24,6 +25,8 @@ const Login = ({ url_prefix } : PropType) => {
                         setError("Login failed");
                     }
                     else {
+                        console.log(res.data);
+                        setName(res.data.name);
                         navigate("/home");
                     }
                 }}

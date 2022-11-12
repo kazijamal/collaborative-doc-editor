@@ -54,6 +54,9 @@ const Home = ({ ydoc, setYdoc, url_prefix, source, setSource }: PropType) => {
                 setLoading(false);
                 navigate(`/edit/${doc}`);
             });
+            eventSource.addEventListener('presence', (e: any) => {
+                console.log(e);
+            })
         } else {
             setError('tried to connect to non-existing document');
         }

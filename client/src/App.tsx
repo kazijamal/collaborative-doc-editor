@@ -11,6 +11,7 @@ import Register from './components/Register';
 function App() {
     const [ydoc, setYdoc] = useState();
     const [source, setSource] = useState();
+    const [name, setName] = useState('');
 
     const dev = true;
     const url_prefix = dev ? 'http://localhost:5001' : '';
@@ -22,11 +23,11 @@ function App() {
                 path='register'
                 element={<Register url_prefix={url_prefix} />}
             />
-            <Route path='login' element={<Login url_prefix={url_prefix} />} />
+            <Route path='login' element={<Login url_prefix={url_prefix} setName={setName}/>} />
             <Route
                 path='edit/:id'
                 element={
-                    <Edit ydoc={ydoc} url_prefix={url_prefix} source={source} />
+                    <Edit ydoc={ydoc} url_prefix={url_prefix} source={source} name={name} setName={setName}/>
                 }
             />
             <Route
