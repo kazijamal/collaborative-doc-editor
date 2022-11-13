@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { QuillBinding } from 'y-quill';
 import ReactQuill, { Quill } from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -23,6 +23,7 @@ const Edit = ({ url_prefix, name }: PropType) => {
     const [ydoc, setYdoc] = useState<any>();
     let editor: any = null;
     let quillRef: any = null;
+    const [cursorPos, setCursorPos] = useState();
 
     useEffect(() => {
         attachQuillRefs();
@@ -46,7 +47,7 @@ const Edit = ({ url_prefix, name }: PropType) => {
 
             editor.on('selection-change', async (data: any) => {
                 if (data === null) return;
-
+                setCursorPos(data.index);
                 await axios.post(
                     `${url_prefix}/api/presence/${id}`,
                     {
@@ -71,6 +72,7 @@ const Edit = ({ url_prefix, name }: PropType) => {
                     { withCredentials: true }
                 );
             });
+
             eventSource.addEventListener('update', (e: any) => {
                 const updateEncoded = toUint8Array(e.data);
                 console.log(newDoc);
@@ -115,9 +117,56 @@ const Edit = ({ url_prefix, name }: PropType) => {
         editor = quillRef.getEditor();
     };
 
-    const modules = {
-        cursors: true,
+    const imageHandler = () => {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.click();
+        input.onchange = async () => {
+            let file = null;
+            if (input.files) {
+                file = input.files[0];
+            }
+            if (file) {
+                if (/^image\//.test(file.type)) {
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    const axiosres = await axios.post(
+                        `${url_prefix}/media/upload`,
+                        fd,
+                        {
+                            headers: {
+                                'Content-Type': 'multipart/form-data',
+                            },
+                            withCredentials: true,
+                        }
+                    );
+                    editor.insertEmbed(
+                        cursorPos,
+                        'image',
+                        `${url_prefix}/media/access/${axiosres.data.mediaid}`
+                    );
+                } else {
+                    console.log('you can only upload images.');
+                }
+            }
+        };
     };
+
+    const modules = useMemo(
+        () => ({
+            toolbar: {
+                container: [['bold', 'italic', 'underline'], ['image']],
+                handlers: {
+                    image: imageHandler,
+                },
+            },
+            cursors: true,
+        }),
+        []
+    );
+
+    const formats = ['bold', 'italic', 'underline', 'image'];
 
     return (
         <div>
@@ -127,6 +176,7 @@ const Edit = ({ url_prefix, name }: PropType) => {
                 }}
                 theme={'snow'}
                 modules={modules}
+                formats={formats}
             />
             <button onClick={disconnect}>Back to Home</button>
         </div>

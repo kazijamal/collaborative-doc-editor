@@ -40,7 +40,7 @@ exports.CRDT = class {
     }
 
     insertImage(index: number, url: string) {
-        this.ytext.insert(index, { image: url });
+        this.ytext.insertEmbed(index, { image: url });
         this.cb(this.currUpdate, true);
     }
 
