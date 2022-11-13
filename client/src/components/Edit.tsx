@@ -4,10 +4,10 @@ import ReactQuill, { Quill } from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import axios from 'axios';
 import { fromUint8Array, toUint8Array } from 'js-base64';
-import { Link, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import * as Y from 'yjs';
 import QuillCursors from 'quill-cursors';
-import Cookies from 'js-cookie'; 
+import Cookies from 'js-cookie';
 
 Quill.register('modules/cursors', QuillCursors);
 
@@ -16,7 +16,8 @@ type PropType = {
     name: any;
 };
 
-const Edit = ({  url_prefix, name }: PropType) => {
+const Edit = ({ url_prefix, name }: PropType) => {
+    let navigate = useNavigate();
     const { id } = useParams();
     const [source, setSource] = useState<any>();
     const [ydoc, setYdoc] = useState<any>();
@@ -26,14 +27,15 @@ const Edit = ({  url_prefix, name }: PropType) => {
     useEffect(() => {
         attachQuillRefs();
 
-        const eventSource = new EventSource(
-            `${url_prefix}/api/connect/${id}`,
-            { withCredentials: true }
-        );
+        const eventSource = new EventSource(`${url_prefix}/api/connect/${id}`, {
+            withCredentials: true,
+        });
+
         eventSource.onopen = () => {
             setSource(eventSource);
             console.log('open');
         };
+
         eventSource.addEventListener('sync', (e: any) => {
             const syncEncoded = toUint8Array(e.data);
             const newDoc = new Y.Doc();
@@ -43,18 +45,17 @@ const Edit = ({  url_prefix, name }: PropType) => {
             new QuillBinding(ytext, editor);
 
             editor.on('selection-change', async (data: any) => {
-                if (data === null)
-                    return;
-                
+                if (data === null) return;
+
                 await axios.post(
                     `${url_prefix}/api/presence/${id}`,
-                    {   
+                    {
                         session_id: Cookies.get('connect.sid'),
                         name: name,
                         cursor: {
                             index: data.index,
-                            length: data.length
-                        }
+                            length: data.length,
+                        },
                     },
                     { withCredentials: true }
                 );
@@ -78,6 +79,7 @@ const Edit = ({  url_prefix, name }: PropType) => {
 
             setYdoc(newDoc);
         });
+
         eventSource.addEventListener('presence', (e: any) => {
             const cursors = editor.getModule('cursors');
             const presence = JSON.parse(e.data);
@@ -88,11 +90,14 @@ const Edit = ({  url_prefix, name }: PropType) => {
 
             if (presence.cursor.index == null) {
                 cursors.removeCursor(cursor_id);
-            }
-            else {
+            } else {
                 const colors = ['red', 'orange', 'green', 'blue', 'purple'];
                 if (cursor_id !== Cookies.get('connect.sid')) {
-                    cursors.createCursor(cursor_id, presence.name, colors[Math.floor(Math.random() * colors.length)])
+                    cursors.createCursor(
+                        cursor_id,
+                        presence.name,
+                        colors[Math.floor(Math.random() * colors.length)]
+                    );
                     cursors.moveCursor(cursor_id, presence.cursor);
                 }
             }
@@ -102,6 +107,7 @@ const Edit = ({  url_prefix, name }: PropType) => {
     const disconnect = async () => {
         ydoc.destroy();
         source.close();
+        navigate('/home');
     };
 
     const attachQuillRefs = () => {
@@ -110,7 +116,7 @@ const Edit = ({  url_prefix, name }: PropType) => {
     };
 
     const modules = {
-        cursors: true 
+        cursors: true,
     };
 
     return (
@@ -122,9 +128,7 @@ const Edit = ({  url_prefix, name }: PropType) => {
                 theme={'snow'}
                 modules={modules}
             />
-            <Link onClick={disconnect} to='/home'>
-                Back to home
-            </Link>
+            <button onClick={disconnect}>Back to Home</button>
         </div>
     );
 };

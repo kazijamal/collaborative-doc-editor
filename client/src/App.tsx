@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import * as Y from 'yjs';
 
 import Edit from './components/Edit';
 import Home from './components/Home';

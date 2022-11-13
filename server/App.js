@@ -1,7 +1,6 @@
 /*
 TODO
 - /home route in frontend should send x-cse356 header (add header in nginx)
-- add emitter for sending when session logged out then on receiving in connect, res.end()
 */
 require('dotenv').config();
 const express = require('express');
@@ -148,11 +147,11 @@ app.get('/api/connect/:id', async (req, res) => {
     res.write('\n\n');
 
     myEmitter.on(`receivedUpdateFor=${id}`, (update) => {
-        // console.log('sending update: ', update);
         res.write('event: update\n');
         res.write(`data: ${fromUint8Array(update)}`);
         res.write('\n\n');
     });
+
     myEmitter.on(`receivedPresenceFor=${id}`, (presence) => {
         if (presenceData[id] === undefined) {
             presenceData[id] = {};
@@ -164,6 +163,10 @@ app.get('/api/connect/:id', async (req, res) => {
         res.write('event: presence\n');
         res.write(`data: ${JSON.stringify(presence)}`);
         res.write('\n\n');
+    });
+
+    myEmitter.on(`closeConnectionsFor=${req.session._id}`, () => {
+        res.end();
     });
 
     setTimeout(() => {
@@ -184,7 +187,6 @@ app.get('/api/connect/:id', async (req, res) => {
                 const oldPresence = presenceData[id][sessionID];
                 delete presenceData[id][sessionID];
                 oldPresence.cursor = {};
-    
                 myEmitter.emit(`receivedPresenceFor=${id}`, oldPresence);
             }
         }
@@ -259,6 +261,7 @@ app.post('/users/login', async (req, res) => {
 });
 
 app.post('/users/logout', async (req, res) => {
+    myEmitter.emit(`closeConnectionsFor=${req.session._id}`);
     const result = await req.session.destroy();
     return res.send({});
 });
