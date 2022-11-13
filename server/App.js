@@ -238,8 +238,7 @@ app.get('/users/verify', async (req, res) => {
             error: true,
             message: 'incorrect key for email verification',
         });
-
-    user.verified = true;
+    user.verified = false;
     await user.save();
     return res.send({ status: 'OK' });
 });
