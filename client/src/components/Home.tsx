@@ -39,11 +39,9 @@ const Home = ({ url_prefix, setName }: PropType) => {
     useEffect(() => {
         (async () => {
             let result = (
-                await axios.post(
-                    `${url_prefix}/collection/list`,
-                    {},
-                    { withCredentials: true }
-                )
+                await axios.get(`${url_prefix}/collection/list`, {
+                    withCredentials: true,
+                })
             ).data;
             console.log(result);
             result = result.map((doc: { id: string; name: string }) => doc.id);
