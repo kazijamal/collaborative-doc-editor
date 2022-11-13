@@ -184,10 +184,13 @@ app.get('/api/connect/:id', async (req, res) => {
             const sessionID = req.cookies['connect.sid']
 
             const oldPresence = presenceData[id][sessionID];
-            delete presenceData[id][sessionID];
-            oldPresence.cursor = {};
+            if (oldPresence !== undefined) {
+                delete presenceData[id][sessionID];
+                oldPresence.cursor = {};
+    
+                myEmitter.emit(`receivedPresenceFor=${id}`, oldPresence);
 
-            myEmitter.emit(`receivedPresenceFor=${id}`, oldPresence);
+            }
         }
     });
 });

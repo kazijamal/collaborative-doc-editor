@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { QuillBinding } from 'y-quill';
 import ReactQuill, { Quill } from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -12,22 +12,56 @@ import Cookies from 'js-cookie';
 Quill.register('modules/cursors', QuillCursors);
 
 type PropType = {
-    ydoc: any;
     url_prefix: string;
     name: any;
-    source: any;
 };
 
-const Edit = ({ ydoc, url_prefix, name, source }: PropType) => {
+const Edit = ({  url_prefix, name }: PropType) => {
     const { id } = useParams();
+    const [source, setSource] = useState<any>();
+    const [ydoc, setYdoc] = useState<any>();
     let editor: any = null;
     let quillRef: any = null;
 
     useEffect(() => {
-        source.addEventListener('update', (e: any) => {
+        const eventSource = new EventSource(
+            `${url_prefix}/api/connect/${id}`,
+            { withCredentials: true }
+        );
+        eventSource.onopen = () => {
+            setSource(eventSource);
+            console.log('open');
+        };
+        eventSource.addEventListener('sync', (e: any) => {
+            const syncEncoded = toUint8Array(e.data);
+            const newDoc = new Y.Doc();
+            Y.applyUpdate(newDoc, syncEncoded);
+            setYdoc(newDoc);
+        });
+        eventSource.addEventListener('update', (e: any) => {
             const updateEncoded = toUint8Array(e.data);
             Y.applyUpdate(ydoc, updateEncoded);
         });
+        eventSource.addEventListener('presence', (e: any) => {
+            const cursors = editor.getModule('cursors');
+            const presence = JSON.parse(e.data);
+
+            console.log(presence.cursor);
+
+            const cursor_id = presence.session_id;
+
+            if (presence.cursor.index == null) {
+                cursors.removeCursor(cursor_id);
+            }
+            else {
+                const colors = ['red', 'orange', 'green', 'blue', 'purple'];
+                if (cursor_id !== Cookies.get('connect.sid')) {
+                    cursors.createCursor(cursor_id, presence.name, colors[Math.floor(Math.random() * colors.length)])
+                    cursors.moveCursor(cursor_id, presence.cursor);
+                }
+            }
+        });
+
         attachQuillRefs();
         const ytext = ydoc.getText('quill');
         new QuillBinding(ytext, editor);
@@ -59,26 +93,6 @@ const Edit = ({ ydoc, url_prefix, name, source }: PropType) => {
                 },
                 { withCredentials: true }
             );
-        });
-
-        source.addEventListener('presence', (e: any) => {
-            const cursors = editor.getModule('cursors');
-            const presence = JSON.parse(e.data);
-
-            console.log(presence.cursor);
-
-            const cursor_id = presence.session_id;
-
-            if (presence.cursor.index == null) {
-                cursors.removeCursor(cursor_id);
-            }
-            else {
-                const colors = ['red', 'orange', 'green', 'blue', 'purple'];
-                if (cursor_id !== Cookies.get('connect.sid')) {
-                    cursors.createCursor(cursor_id, presence.name, colors[Math.floor(Math.random() * colors.length)])
-                    cursors.moveCursor(cursor_id, presence.cursor);
-                }
-            }
         });
     }, []);
 

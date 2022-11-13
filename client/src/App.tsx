@@ -9,8 +9,6 @@ import Login from './components/Login';
 import Register from './components/Register';
 
 function App() {
-    const [ydoc, setYdoc] = useState();
-    const [source, setSource] = useState();
     const [name, setName] = useState('');
 
     const dev = true;
@@ -27,18 +25,14 @@ function App() {
             <Route
                 path='edit/:id'
                 element={
-                    <Edit ydoc={ydoc} url_prefix={url_prefix} source={source} name={name} />
+                    <Edit url_prefix={url_prefix} name={name} />
                 }
             />
             <Route
                 path='home'
                 element={
                     <Home
-                        setYdoc={setYdoc}
-                        ydoc={ydoc}
                         url_prefix={url_prefix}
-                        source={source}
-                        setSource={setSource}
                         setName={setName}
                     />
                 }

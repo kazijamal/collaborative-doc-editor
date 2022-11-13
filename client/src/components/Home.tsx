@@ -7,15 +7,11 @@ import Cookies from 'js-cookie';
 
 
 type PropType = {
-    ydoc: any;
-    setYdoc: any;
     url_prefix: string;
-    source: any;
-    setSource: any;
     setName: any;
 };
 
-const Home = ({ ydoc, setYdoc, url_prefix, source, setSource, setName }: PropType) => {
+const Home = ({ url_prefix, setName }: PropType) => {
     let navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [docs, setDocs] = useState([]);
@@ -30,38 +26,8 @@ const Home = ({ ydoc, setYdoc, url_prefix, source, setSource, setName }: PropTyp
             { name: doc },
             { withCredentials: true }
         );
-        await connect(doc);
-    };
-
-    const connect = async (doc: string) => {
-        setLoading(true);
-        const docExists = await axios.post(
-            `${url_prefix}/collection/exists`,
-            { id: doc },
-            { withCredentials: true }
-        );
-        if (docExists.data.exists) {
-            const eventSource = new EventSource(
-                `${url_prefix}/api/connect/${doc}`,
-                { withCredentials: true }
-            );
-            eventSource.onopen = () => {
-                setSource(eventSource);
-                console.log('open');
-            };
-            eventSource.addEventListener('sync', (e: any) => {
-                console.log('received sync');
-
-                const syncEncoded = toUint8Array(e.data);
-                const newDoc = new Y.Doc();
-                Y.applyUpdate(newDoc, syncEncoded);
-                setYdoc(newDoc);
-                setLoading(false);
-                navigate(`/edit/${doc}`);
-            });
-        } else {
-            setError('tried to connect to non-existing document');
-        }
+        // await connect(doc);
+        navigate(`/edit/${doc}`);
     };
 
     const deleteDoc = async (doc: string) => {
@@ -112,7 +78,8 @@ const Home = ({ ydoc, setYdoc, url_prefix, source, setSource, setName }: PropTyp
             {docs.map((doc: string) => {
                 return (
                     <div key={doc}>
-                        <div onClick={() => connect(doc)}>{doc}</div>
+                        <Link to={`/edit/${doc}`}> Connect to {doc} </Link>
+                        {/* <div onClick={() => connect(doc)}>{doc}</div> */}
                         <button onClick={() => deleteDoc(doc)}>delete</button>
                     </div>
                 );
