@@ -24,6 +24,8 @@ const Edit = ({  url_prefix, name }: PropType) => {
     let quillRef: any = null;
 
     useEffect(() => {
+        attachQuillRefs();
+
         const eventSource = new EventSource(
             `${url_prefix}/api/connect/${id}`,
             { withCredentials: true }
@@ -37,7 +39,6 @@ const Edit = ({  url_prefix, name }: PropType) => {
             const newDoc = new Y.Doc();
             Y.applyUpdate(newDoc, syncEncoded);
 
-            attachQuillRefs();
             const ytext = newDoc.getText('quill');
             new QuillBinding(ytext, editor);
 
@@ -69,12 +70,13 @@ const Edit = ({  url_prefix, name }: PropType) => {
                     { withCredentials: true }
                 );
             });
+            eventSource.addEventListener('update', (e: any) => {
+                const updateEncoded = toUint8Array(e.data);
+                console.log(newDoc);
+                Y.applyUpdate(newDoc, updateEncoded);
+            });
 
             setYdoc(newDoc);
-        });
-        eventSource.addEventListener('update', (e: any) => {
-            const updateEncoded = toUint8Array(e.data);
-            Y.applyUpdate(ydoc, updateEncoded);
         });
         eventSource.addEventListener('presence', (e: any) => {
             const cursors = editor.getModule('cursors');
