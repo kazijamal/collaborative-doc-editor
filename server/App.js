@@ -1,7 +1,7 @@
 /*
 TODO
-- "presence" event
-- insertImage(index: number, url: string)
+- /home route in frontend should send x-cse356 header (add header in nginx)
+- add emitter for sending when session logged out then on receiving in connect, res.end()
 */
 require('dotenv').config();
 const express = require('express');
@@ -68,14 +68,14 @@ app.use('/library', express.static('library'));
 app.use(express.static('build'));
 
 // session middleware
-// app.use((req, res, next) => {
-//     console.log('id on ' + req.path, req.session._id);
-//     if (req.path.includes('users') || (req.session && req.session._id)) {
-//         next();
-//     } else {
-//         return res.send({ error: true, message: 'user is not authenticated' });
-//     }
-// });
+app.use((req, res, next) => {
+    console.log('id on ' + req.path, req.session._id);
+    if (req.path.includes('users') || (req.session && req.session._id)) {
+        next();
+    } else {
+        return res.send({ error: true, message: 'user is not authenticated' });
+    }
+});
 
 // nodemailer
 const transporter = nodemailer.createTransport({
@@ -108,15 +108,14 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
-
 const presenceData = {
     // doc1ID: {
-        // session_id1: presence1,
-        // session_id2: presence2,
-        // ...
+    // session_id1: presence1,
+    // session_id2: presence2,
+    // ...
     // }
     // doc2ID: {
-        // ...
+    // ...
     // }
 };
 
@@ -143,22 +142,21 @@ app.get('/api/connect/:id', async (req, res) => {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
     });
-    
+
     res.write('event: sync\n');
     res.write(`data: ${base64Encoded}`);
     res.write('\n\n');
-    
+
     myEmitter.on(`receivedUpdateFor=${id}`, (update) => {
         // console.log('sending update: ', update);
         res.write('event: update\n');
         res.write(`data: ${fromUint8Array(update)}`);
         res.write('\n\n');
     });
-    myEmitter.on(`receivedPresenceFor=${id}`, presence => {
-
+    myEmitter.on(`receivedPresenceFor=${id}`, (presence) => {
         if (presenceData[id] === undefined) {
             presenceData[id] = {};
-        };
+        }
         presenceData[id][presence.session_id] = presence;
 
         console.log('presenceData', presenceData);
@@ -171,7 +169,6 @@ app.get('/api/connect/:id', async (req, res) => {
     setTimeout(() => {
         if (presenceData[id] !== undefined) {
             for (const [key, presence] of Object.entries(presenceData[id])) {
-    
                 res.write('event: presence\n');
                 res.write(`data: ${JSON.stringify(presence)}`);
                 res.write('\n\n');
@@ -181,7 +178,7 @@ app.get('/api/connect/:id', async (req, res) => {
 
     req.on('close', () => {
         if (req.cookies['connect.sid']) {
-            const sessionID = req.cookies['connect.sid']
+            const sessionID = req.cookies['connect.sid'];
 
             const oldPresence = presenceData[id][sessionID];
             if (oldPresence !== undefined) {
@@ -210,7 +207,7 @@ app.post('/api/presence/:id', async (req, res) => {
 
     res.sendStatus(200);
     myEmitter.emit(`receivedPresenceFor=${id}`, req.body);
-})
+});
 // login routes (use router later?)
 app.post('/users/signup', async (req, res) => {
     const { name, password, email } = req.body.values;
@@ -264,7 +261,7 @@ app.post('/users/login', async (req, res) => {
 
 app.post('/users/logout', async (req, res) => {
     const result = await req.session.destroy();
-    return res.send({ });
+    return res.send({});
 });
 
 app.post('/collection/create', async (req, res) => {
@@ -287,7 +284,7 @@ app.post('/collection/delete', async (req, res) => {
             mostRecentDocs: mostRecentDocs,
         });
         await persistence.clearDocument(id);
-        return res.send({ });
+        return res.send({});
     }
     return res.send({
         error: true,
