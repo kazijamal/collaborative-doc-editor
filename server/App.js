@@ -180,13 +180,12 @@ app.get('/api/connect/:id', async (req, res) => {
         if (req.cookies['connect.sid']) {
             const sessionID = req.cookies['connect.sid'];
 
-            const oldPresence = presenceData[id][sessionID];
-            if (oldPresence !== undefined) {
+            if (presenceData[id] && presenceData[id][sessionID]) {
+                const oldPresence = presenceData[id][sessionID];
                 delete presenceData[id][sessionID];
                 oldPresence.cursor = {};
     
                 myEmitter.emit(`receivedPresenceFor=${id}`, oldPresence);
-
             }
         }
     });
