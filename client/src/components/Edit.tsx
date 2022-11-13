@@ -36,6 +36,40 @@ const Edit = ({  url_prefix, name }: PropType) => {
             const syncEncoded = toUint8Array(e.data);
             const newDoc = new Y.Doc();
             Y.applyUpdate(newDoc, syncEncoded);
+
+            attachQuillRefs();
+            const ytext = newDoc.getText('quill');
+            new QuillBinding(ytext, editor);
+
+            editor.on('selection-change', async (data: any) => {
+                if (data === null)
+                    return;
+                
+                await axios.post(
+                    `${url_prefix}/api/presence/${id}`,
+                    {   
+                        session_id: Cookies.get('connect.sid'),
+                        name: name,
+                        cursor: {
+                            index: data.index,
+                            length: data.length
+                        }
+                    },
+                    { withCredentials: true }
+                );
+            });
+
+            newDoc.on('update', async (update: any) => {
+                console.log('update with id', id);
+                await axios.post(
+                    `${url_prefix}/api/op/${id}`,
+                    {
+                        update: fromUint8Array(update),
+                    },
+                    { withCredentials: true }
+                );
+            });
+
             setYdoc(newDoc);
         });
         eventSource.addEventListener('update', (e: any) => {
@@ -60,39 +94,6 @@ const Edit = ({  url_prefix, name }: PropType) => {
                     cursors.moveCursor(cursor_id, presence.cursor);
                 }
             }
-        });
-
-        attachQuillRefs();
-        const ytext = ydoc.getText('quill');
-        new QuillBinding(ytext, editor);
-
-        editor.on('selection-change', async (data: any) => {
-            if (data === null)
-                return;
-            
-            await axios.post(
-                `${url_prefix}/api/presence/${id}`,
-                {   
-                    session_id: Cookies.get('connect.sid'),
-                    name: name,
-                    cursor: {
-                        index: data.index,
-                        length: data.length
-                    }
-                },
-                { withCredentials: true }
-            );
-        });
-
-        ydoc.on('update', async (update: any) => {
-            console.log('update with id', id);
-            await axios.post(
-                `${url_prefix}/api/op/${id}`,
-                {
-                    update: fromUint8Array(update),
-                },
-                { withCredentials: true }
-            );
         });
     }, []);
 
