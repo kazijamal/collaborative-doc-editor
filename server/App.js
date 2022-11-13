@@ -1,9 +1,6 @@
 /*
 TODO
-- email
 - "presence" event
-- /media/upload
-- /media/access/:mediaid
 - insertImage(index: number, url: string)
 */
 require('dotenv').config();
