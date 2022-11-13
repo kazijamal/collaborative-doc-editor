@@ -1,14 +1,12 @@
 /*
-
 TODO
 - email
 - "presence" event
 - /media/upload
 - /media/access/:mediaid
 - insertImage(index: number, url: string)
-
 */
-
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const MongoStore = require('connect-mongo');
@@ -23,10 +21,18 @@ const persistence = new LeveldbPersistence('./leveldb');
 const toUint8Array = require('js-base64').toUint8Array;
 const fromUint8Array = require('js-base64').fromUint8Array;
 const EventEmitter = require('node:events').EventEmitter;
+const multer = require('multer');
+const s3 = require('@auth0/s3');
+const fs = require('fs');
+const { promisify } = require('util');
+const unlinkAsync = promisify(fs.unlink);
+const path = require('path');
+const https = require('https');
 
 // db
 const User = require('./models/User');
 const DocData = require('./models/DocData');
+const Media = require('./models/Media');
 
 const mongoDB = 'mongodb://127.0.0.1/docs';
 const clientPromise = mongoose
@@ -44,7 +50,7 @@ app.use(
     })
 );
 app.use(express.json());
-
+app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
     res.append('X-CSE356', '630a7abf047a1139b66db8e3');
     next();
@@ -60,22 +66,35 @@ app.use(
     })
 );
 
+// static paths
 app.use('/library', express.static('library'));
 app.use(express.static('build'));
-app.use((req, res, next) => {
-    console.log('id on ' + req.path, req.session._id);
-    if (req.path.includes('users') || (req.session && req.session._id)) {
-        next();
-    } else {
-        return res.send({ error: true, message: 'user is not authenticated' });
-    }
-});
+
+// session middleware
+// app.use((req, res, next) => {
+//     console.log('id on ' + req.path, req.session._id);
+//     if (req.path.includes('users') || (req.session && req.session._id)) {
+//         next();
+//     } else {
+//         return res.send({ error: true, message: 'user is not authenticated' });
+//     }
+// });
 
 // nodemailer
 const transporter = nodemailer.createTransport({
     sendmail: true,
     newline: 'unix',
     pat: '/usr/sbin/sendmail',
+});
+
+// configure media uploading
+const upload = multer({ dest: './uploads/' });
+const s3Client = s3.createClient({
+    s3Options: {
+        accessKeyId: process.env.S3_ACCESS_KEY,
+        secretAccessKey: process.env.S3_SECRET_KEY,
+        endpoint: process.env.S3_ENDPOINT,
+    },
 });
 
 const myEmitter = new EventEmitter();
@@ -237,6 +256,58 @@ app.post('/collection/exists', async (req, res) => {
     let { id } = req.body;
     let { _id, mostRecentDocs } = await DocData.findOne();
     return res.send({ exists: mostRecentDocs.includes(id) });
+});
+
+app.post('/media/upload', upload.single('file'), async (req, res) => {
+    if (req.file.mimetype != 'image/jpeg' && req.file.mimetype != 'image/png') {
+        await unlinkAsync(req.file.path);
+        return res.send({
+            error: true,
+            message: 'uploaded media must be jpeg or png image',
+        });
+    } else {
+        const newMedia = new Media({ mimetype: req.file.mimetype });
+        await newMedia.save();
+        const newfilename =
+            newMedia._id.toString() + path.extname(req.file.originalname);
+        const params = {
+            localFile: req.file.path,
+            s3Params: {
+                Bucket: 'media',
+                Key: newfilename,
+            },
+        };
+        const uploader = s3Client.uploadFile(params);
+        uploader.on('error', async function (err) {
+            console.error('unable to upload:', err.stack);
+            await unlinkAsync(req.file.path);
+            res.send({ error: true, message: 'unable to upload media' });
+        });
+        uploader.on('end', async function () {
+            console.log('done uploading');
+            await unlinkAsync(req.file.path);
+            newMedia.url =
+                'https://media.bkmj-storage.us-nyc1.upcloudobjects.com/' +
+                newfilename;
+            await newMedia.save();
+            return res.send({ mediaid: newMedia._id.toString() });
+        });
+    }
+});
+
+app.get('/media/access/:mediaid', async (req, res) => {
+    const media = await Media.findById(req.params.mediaid);
+    if (!media) {
+        return res.send({
+            error: true,
+            message: 'no media found with provided mediaid',
+        });
+    } else {
+        https.get(media.url, (httpres) => {
+            res.type(media.mimetype);
+            httpres.pipe(res);
+        });
+    }
 });
 
 const port = 5001;
