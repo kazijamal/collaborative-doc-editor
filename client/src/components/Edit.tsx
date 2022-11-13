@@ -1,22 +1,24 @@
 import React, { useEffect } from 'react';
 import { QuillBinding } from 'y-quill';
-import ReactQuill from 'react-quill';
+import ReactQuill, { Quill } from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import axios from 'axios';
 import { fromUint8Array, toUint8Array } from 'js-base64';
 import { Link, useParams } from 'react-router-dom';
 import * as Y from 'yjs';
-import Cookies from 'js-cookie';
+import QuillCursors from 'quill-cursors';
+import Cookies from 'js-cookie'; 
+
+Quill.register('modules/cursors', QuillCursors);
 
 type PropType = {
     ydoc: any;
     url_prefix: string;
     name: any;
-    setName: any;
     source: any;
 };
 
-const Edit = ({ ydoc, url_prefix, name, setName, source }: PropType) => {
+const Edit = ({ ydoc, url_prefix, name, source }: PropType) => {
     const { id } = useParams();
     let editor: any = null;
     let quillRef: any = null;
@@ -29,20 +31,15 @@ const Edit = ({ ydoc, url_prefix, name, setName, source }: PropType) => {
         attachQuillRefs();
         const ytext = ydoc.getText('quill');
         new QuillBinding(ytext, editor);
+
         editor.on('selection-change', async (data: any) => {
-            let cookies = document.cookie.split(";");
-            let sid = '';
-            for (let cookie of cookies) {
-                const key = cookie.split('=')[0];
-                const value = cookie.split('=')[1];
-                
-                if (key === 'connect.sid')
-                    sid = value;
-            }
+            if (data === null)
+                return;
+            
             await axios.post(
                 `${url_prefix}/api/presence/${id}`,
                 {   
-                    session_id: sid,
+                    session_id: Cookies.get('connect.sid'),
                     name: name,
                     cursor: {
                         index: data.index,
@@ -52,6 +49,7 @@ const Edit = ({ ydoc, url_prefix, name, setName, source }: PropType) => {
                 { withCredentials: true }
             );
         });
+
         ydoc.on('update', async (update: any) => {
             console.log('update with id', id);
             await axios.post(
@@ -62,12 +60,31 @@ const Edit = ({ ydoc, url_prefix, name, setName, source }: PropType) => {
                 { withCredentials: true }
             );
         });
+
+        source.addEventListener('presence', (e: any) => {
+            const cursors = editor.getModule('cursors');
+            const presence = JSON.parse(e.data);
+
+            console.log(presence.cursor);
+
+            const cursor_id = presence.session_id;
+
+            if (presence.cursor.index == null) {
+                cursors.removeCursor(cursor_id);
+            }
+            else {
+                const colors = ['red', 'orange', 'green', 'blue', 'purple'];
+                if (cursor_id !== Cookies.get('connect.sid')) {
+                    cursors.createCursor(cursor_id, presence.name, colors[Math.floor(Math.random() * colors.length)])
+                    cursors.moveCursor(cursor_id, presence.cursor);
+                }
+            }
+        });
     }, []);
 
-    const disconnect = () => {
+    const disconnect = async () => {
         ydoc.destroy();
         source.close();
-        setName('');
     };
 
     const attachQuillRefs = () => {
@@ -75,14 +92,18 @@ const Edit = ({ ydoc, url_prefix, name, setName, source }: PropType) => {
         editor = quillRef.getEditor();
     };
 
+    const modules = {
+        cursors: true 
+    };
+
     return (
         <div>
-            
             <ReactQuill
                 ref={(e) => {
                     quillRef = e;
                 }}
                 theme={'snow'}
+                modules={modules}
             />
             <Link onClick={disconnect} to='/home'>
                 Back to home

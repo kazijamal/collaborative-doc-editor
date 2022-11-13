@@ -3,6 +3,8 @@ import * as Y from 'yjs';
 import { toUint8Array } from 'js-base64';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Cookies from 'js-cookie'; 
+
 
 type PropType = {
     ydoc: any;
@@ -10,9 +12,10 @@ type PropType = {
     url_prefix: string;
     source: any;
     setSource: any;
+    setName: any;
 };
 
-const Home = ({ ydoc, setYdoc, url_prefix, source, setSource }: PropType) => {
+const Home = ({ ydoc, setYdoc, url_prefix, source, setSource, setName }: PropType) => {
     let navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [docs, setDocs] = useState([]);
@@ -47,6 +50,8 @@ const Home = ({ ydoc, setYdoc, url_prefix, source, setSource }: PropType) => {
                 console.log('open');
             };
             eventSource.addEventListener('sync', (e: any) => {
+                console.log('received sync');
+
                 const syncEncoded = toUint8Array(e.data);
                 const newDoc = new Y.Doc();
                 Y.applyUpdate(newDoc, syncEncoded);
@@ -54,9 +59,6 @@ const Home = ({ ydoc, setYdoc, url_prefix, source, setSource }: PropType) => {
                 setLoading(false);
                 navigate(`/edit/${doc}`);
             });
-            eventSource.addEventListener('presence', (e: any) => {
-                console.log(e);
-            })
         } else {
             setError('tried to connect to non-existing document');
         }
@@ -96,6 +98,7 @@ const Home = ({ ydoc, setYdoc, url_prefix, source, setSource }: PropType) => {
             {},
             { withCredentials: true }
         );
+        setName('');
         console.log(res);
         navigate('/');
     };

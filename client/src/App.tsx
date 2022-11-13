@@ -27,7 +27,7 @@ function App() {
             <Route
                 path='edit/:id'
                 element={
-                    <Edit ydoc={ydoc} url_prefix={url_prefix} source={source} name={name} setName={setName}/>
+                    <Edit ydoc={ydoc} url_prefix={url_prefix} source={source} name={name} />
                 }
             />
             <Route
@@ -39,6 +39,7 @@ function App() {
                         url_prefix={url_prefix}
                         source={source}
                         setSource={setSource}
+                        setName={setName}
                     />
                 }
             />

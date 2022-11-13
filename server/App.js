@@ -1,12 +1,11 @@
 /*
 
 TODO
-- email
-- "presence" event
-- /media/upload
-- /media/access/:mediaid
-- insertImage(index: number, url: string)
-
+- disconnect:
+    - remove cursor from cursors list
+    - send the empty cursor object to all connected users
+- logout:
+    - destroy the event stream
 */
 
 const express = require('express');
@@ -53,8 +52,7 @@ app.use(cookieParser());
 app.use(
     session({
         secret: 'secret key',
-        cookie: { secure: false },
-        HttpOnly: false,
+        cookie: { secure: false, httpOnly: false },
         resave: false,
         saveUninitialized: false,
         store: MongoStore.create({ clientPromise: clientPromise }),
@@ -93,6 +91,18 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
+
+const presenceData = {
+    // doc1ID: {
+        // session_id1: presence1,
+        // session_id2: presence2,
+        // ...
+    // }
+    // doc2ID: {
+        // ...
+    // }
+};
+
 app.get('/api/connect/:id', async (req, res) => {
     const { id } = req.params;
 
@@ -116,11 +126,11 @@ app.get('/api/connect/:id', async (req, res) => {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
     });
-
+    
     res.write('event: sync\n');
     res.write(`data: ${base64Encoded}`);
     res.write('\n\n');
-
+    
     myEmitter.on(`receivedUpdateFor=${id}`, (update) => {
         // console.log('sending update: ', update);
         res.write('event: update\n');
@@ -128,10 +138,40 @@ app.get('/api/connect/:id', async (req, res) => {
         res.write('\n\n');
     });
     myEmitter.on(`receivedPresenceFor=${id}`, presence => {
-        
+
+        if (presenceData[id] === undefined) {
+            presenceData[id] = {};
+        };
+        presenceData[id][presence.session_id] = presence;
+
+        console.log('presenceData', presenceData);
+
         res.write('event: presence\n');
         res.write(`data: ${JSON.stringify(presence)}`);
         res.write('\n\n');
+    });
+
+    setTimeout(() => {
+        if (presenceData[id] !== undefined) {
+            for (const [key, presence] of Object.entries(presenceData[id])) {
+    
+                res.write('event: presence\n');
+                res.write(`data: ${JSON.stringify(presence)}`);
+                res.write('\n\n');
+            }
+        }
+    }, 75);
+
+    req.on('close', () => {
+        if (req.cookies['connect.sid']) {
+            const sessionID = req.cookies['connect.sid']
+
+            const oldPresence = presenceData[id][sessionID];
+            delete presenceData[id][sessionID];
+            oldPresence.cursor = {};
+
+            myEmitter.emit(`receivedPresenceFor=${id}`, oldPresence);
+        }
     });
 });
 
@@ -169,7 +209,7 @@ app.post('/users/signup', async (req, res) => {
         text: verifyUrl,
         html: `<a href=${verifyUrl}>${verifyUrl}</a>`,
     });
-    return res.send({ status: 'OK' });
+    return res.send({});
 });
 
 app.get('/users/verify', async (req, res) => {
@@ -204,7 +244,7 @@ app.post('/users/login', async (req, res) => {
 
 app.post('/users/logout', async (req, res) => {
     const result = await req.session.destroy();
-    return res.send({ status: 'OK' });
+    return res.send({ });
 });
 
 app.post('/collection/create', async (req, res) => {
@@ -213,7 +253,7 @@ app.post('/collection/create', async (req, res) => {
     mostRecentDocs.push(name);
     await DocData.findByIdAndUpdate(_id, { mostRecentDocs: mostRecentDocs });
 
-    return res.send({ error: false });
+    return res.send({ id: name });
 });
 
 app.post('/collection/delete', async (req, res) => {
@@ -227,7 +267,7 @@ app.post('/collection/delete', async (req, res) => {
             mostRecentDocs: mostRecentDocs,
         });
         await persistence.clearDocument(id);
-        return res.send({ error: false });
+        return res.send({ });
     }
     return res.send({
         error: true,
