@@ -1,7 +1,7 @@
 /*
 TODO
-- "presence" event
-- insertImage(index: number, url: string)
+- /home route in frontend should send x-cse356 header (add header in nginx)
+- add emitter for sending when session logged out then on receiving in connect, res.end()
 */
 require('dotenv').config();
 const express = require('express');
