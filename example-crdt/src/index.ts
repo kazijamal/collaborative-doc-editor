@@ -15,7 +15,7 @@ exports.CRDT = class {
     currUpdate: any;
 
     constructor(cb: (update: string, isLocal: Boolean) => void) {
-        ['update', 'insert', 'delete', 'toHTML'].forEach(
+        ['update', 'insert', 'insertImage', 'delete', 'toHTML'].forEach(
             (f) => ((this as any)[f] = (this as any)[f].bind(this))
         );
         this.cb = cb;
@@ -36,6 +36,11 @@ exports.CRDT = class {
 
     insert(index: number, content: string, format: CRDTFormat) {
         this.ytext.insert(index, content, format);
+        this.cb(this.currUpdate, true);
+    }
+
+    insertImage(index: number, url: string) {
+        this.ytext.insert(index, { image: url });
         this.cb(this.currUpdate, true);
     }
 
