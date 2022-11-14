@@ -48,17 +48,15 @@ const Edit = ({ url_prefix, name }: PropType) => {
             new QuillBinding(ytext, editor);
 
             editor.on('selection-change', async (data: any) => {
+                console.log('data', data);
                 if (data === null) return;
                 setCursorPos(data.index);
                 await axios.post(
                     `${url_prefix}/api/presence/${id}`,
                     {
-                        session_id: Cookies.get('connect.sid'),
-                        name: name,
-                        cursor: {
-                            index: data.index,
-                            length: data.length,
-                        },
+                        
+                        index: data.index,
+                        length: data.length,
                     },
                     { withCredentials: true }
                 );
@@ -76,6 +74,7 @@ const Edit = ({ url_prefix, name }: PropType) => {
             });
 
             eventSource.addEventListener('update', (e: any) => {
+                console.log('received update');
                 const updateEncoded = toUint8Array(e.data);
                 console.log(newDoc);
                 Y.applyUpdate(newDoc, updateEncoded);

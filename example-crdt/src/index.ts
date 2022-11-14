@@ -20,33 +20,39 @@ exports.CRDT = class {
         );
         this.cb = cb;
         this.ydoc = new Y.Doc();
-        this.ytext = this.ydoc.getText();
-        this.ydoc.on('update', (update: any) => {
-            this.currUpdate = JSON.stringify({
+        this.ytext = this.ydoc.getText('quill');
+        this.ydoc.on('update', (update: any, origin: any) => {
+            const newUpdate = {
                 update: fromUint8Array(update),
-            });
+            };
+            if (origin === 'external') {
+                this.cb(newUpdate, false);
+            }
+            else {
+                this.cb(newUpdate, true);
+            }
         });
     }
 
     update(update: string) {
         const binaryEncoded = toUint8Array(update);
-        Y.applyUpdate(this.ydoc, binaryEncoded);
-        this.cb(update, false);
+        Y.applyUpdate(this.ydoc, binaryEncoded, 'external');
+        // this.cb(update, false);
     }
 
     insert(index: number, content: string, format: CRDTFormat) {
         this.ytext.insert(index, content, format);
-        this.cb(this.currUpdate, true);
+        // this.cb(this.currUpdate, true);
     }
 
     insertImage(index: number, url: string) {
         this.ytext.insertEmbed(index, { image: url });
-        this.cb(this.currUpdate, true);
+        // this.cb(this.currUpdate, true);
     }
 
     delete(index: number, length: number) {
         this.ytext.delete(index, length);
-        this.cb(this.currUpdate, true);
+        // this.cb(this.currUpdate, true);
     }
 
     toHTML() {
@@ -56,3 +62,4 @@ exports.CRDT = class {
         return html;
     }
 };
+

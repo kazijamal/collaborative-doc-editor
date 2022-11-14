@@ -15,24 +15,24 @@ const Home = ({ url_prefix, setName }: PropType) => {
 
     const create = async (e: React.SyntheticEvent, doc: string) => {
         e.preventDefault();
-        await axios.post(
+        const response = await axios.post(
             `${url_prefix}/collection/create`,
             { name: doc },
             { withCredentials: true }
         );
-        navigate(`/edit/${doc}`);
+        navigate(`/edit/${response.data.id}`);
     };
 
-    const deleteDoc = async (doc: string) => {
+    const deleteDoc = async (doc: any) => {
         const result = await axios.post(
             `${url_prefix}/collection/delete`,
-            { id: doc },
+            { id: doc.id },
             { withCredentials: true }
         );
         if (result.data.error) {
             setError('tried to delete non-existing document');
         } else {
-            setDocs(docs.filter((docName) => docName !== doc));
+            setDocs(docs.filter((document: any) => document.id !== doc.id));
         }
     };
 
@@ -44,7 +44,6 @@ const Home = ({ url_prefix, setName }: PropType) => {
                 })
             ).data;
             console.log(result);
-            result = result.map((doc: { id: string; name: string }) => doc.id);
             setDocs(result);
         })();
     }, []);
@@ -64,10 +63,10 @@ const Home = ({ url_prefix, setName }: PropType) => {
         <div>
             <h1>Home</h1>
             {error}
-            {docs.map((doc: string) => {
+            {docs.map((doc: any) => {
                 return (
-                    <div key={doc}>
-                        <Link to={`/edit/${doc}`}> Connect to {doc} </Link>
+                    <div key={doc.id}>
+                        <Link to={`/edit/${doc.id}`}> Connect to {doc.name} </Link>
                         {/* <div onClick={() => connect(doc)}>{doc}</div> */}
                         <button onClick={() => deleteDoc(doc)}>delete</button>
                     </div>

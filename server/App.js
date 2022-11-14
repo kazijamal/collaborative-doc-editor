@@ -69,8 +69,8 @@ app.use(express.static('build'));
 
 // session middleware
 app.use((req, res, next) => {
-    console.log('id on ' + req.path, req.session._id);
-    if (req.path.includes('users') || (req.session && req.session._id)) {
+    // console.log('id on ' + req.path, req.session._id);
+    if (req.path.includes('users') || req.path.includes('authenticate') || (req.session && req.session._id)) {
         next();
     } else {
         return res.send({ error: true, message: 'user is not authenticated' });
@@ -98,6 +98,7 @@ const myEmitter = new EventEmitter();
 // keep a single DocData object, array of docs. Create it if it does not exist
 (async () => {
     let docData = await DocData.findOne();
+    // console.log('DOCDATA', docData);
     if (docData === null) {
         docData = new DocData();
         docData.save();
@@ -105,12 +106,6 @@ const myEmitter = new EventEmitter();
 })();
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'build', 'index.html'));
-});
-app.get('/home', (req, res) => {
-    res.sendFile(path.join(__dirname, 'build', 'index.html'));
-});
-app.get('/edit:id', (req, res) => {
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
@@ -134,24 +129,32 @@ const presenceData = {
 };
 
 app.get('/api/connect/:id', async (req, res) => {
+    console.log('connect');
+    // console.log('REQ PARAMS', req);
+    // console.log(req.rawHeaders);
     let { id } = req.params;
+    // let id = req.rawHeaders.find()
 
-    console.log('pre encode: ', id);
-    const { _id, mostRecentDocs } = await DocData.findOne();
-    id = encodeURIComponent(id);
-    const index = mostRecentDocs.indexOf(id);
-    console.log('encoded, found: ', id, index);
-    if (index <= -1) {
+    // console.log('pre encode: ', id);
+    let { _id, mostRecentDocs } = await DocData.findOne();
+    const doc = mostRecentDocs.find(doc => doc.id === id);
+    // console.log(doc.id, id);
+    mostRecentDocs = mostRecentDocs.filter(doc => doc.id !== id);
+    if (doc === undefined) {
+        
         console.log('doc does not exist');
         return res.send({ error: true, message: 'doc does not exist' });
     }
-    mostRecentDocs.splice(index, 1);
-    mostRecentDocs.push(id);
+    mostRecentDocs.push(doc);
     await DocData.findByIdAndUpdate(_id, { mostRecentDocs: mostRecentDocs });
 
     const ydoc = await persistence.getYDoc(id);
     const documentState = Y.encodeStateAsUpdate(ydoc);
     const base64Encoded = fromUint8Array(documentState);
+
+    console.log('---------------------')
+    console.log('GET THE STUFF for ' + id, ydoc.getText('quill').toJSON());
+    console.log('---------------------')
 
     res.writeHead(200, {
         Connection: 'keep-alive',
@@ -175,7 +178,7 @@ app.get('/api/connect/:id', async (req, res) => {
         }
         presenceData[id][presence.session_id] = presence;
 
-        console.log('presenceData', presenceData);
+        // console.log('presenceData', presenceData);
 
         res.write('event: presence\n');
         res.write(`data: ${JSON.stringify(presence)}`);
@@ -211,20 +214,45 @@ app.get('/api/connect/:id', async (req, res) => {
 });
 
 app.post('/api/op/:id', async (req, res) => {
-    const { id } = req.params;
-    console.log('update to ' + id);
+    let { id } = req.params;
+    // console.log(req.body);
+    // console.log('update ', JSON.parse(req.body.update));
+
+    // const ydoc = await persistence.getYDoc(id);
+    // Y.applyUpdate(ydoc, req.body.update);
+    // console.log('before', ydoc.getText('quill').toJSON());
+
+    // const update = toUint8Array(JSON.parse(req.body.update).update);
     const update = toUint8Array(req.body.update);
+    // console.log("upd:", update);
     await persistence.storeUpdate(id, update);
+    // Y.applyUpdate(ydoc, update);
+    // persistence.clearDocument(id);
+    // await persistence.storeUpdate(id, Y.encodeStateAsUpdate(ydoc));
+
+    // console.log('after', ydoc.getText('quill').toJSON());
+    // id = encodeURIComponent(id);
+
     // console.log('store update res: ', updated);
-    res.sendStatus(200);
     myEmitter.emit(`receivedUpdateFor=${id}`, update);
+    // res.sendStatus(200);
+    return res.send({});
 });
 
 app.post('/api/presence/:id', async (req, res) => {
     const { id } = req.params;
+    const { index, length } = req.body;
 
+    const presence = {
+        session_id: req.session._id,
+        name: req.session.name,
+        cursor: {
+            index,
+            length
+        }    
+    }
     res.sendStatus(200);
-    myEmitter.emit(`receivedPresenceFor=${id}`, req.body);
+    myEmitter.emit(`receivedPresenceFor=${id}`, presence);
 });
 // login routes (use router later?)
 app.post('/users/signup', async (req, res) => {
@@ -283,7 +311,7 @@ app.get('/users/verify', async (req, res) => {
 
 app.post('/users/login', async (req, res) => {
     const { email, password } = req.body;
-    console.log(email, password);
+    // console.log(email, password);
     const user = await User.findOne({
         email: email,
         password: password,
@@ -292,8 +320,9 @@ app.post('/users/login', async (req, res) => {
     if (user === null)
         return res.send({ error: true, message: 'login failed' });
     req.session._id = user._id.toString();
+    req.session.name = user.name;
     req.session.save(() => {
-        console.log('id after login: ', req.session._id);
+        // console.log('id after login: ', req.session._id);
         res.send({ name: user.name });
     });
 });
@@ -307,8 +336,10 @@ app.post('/users/logout', async (req, res) => {
 app.post('/collection/create', async (req, res) => {
     const { name } = req.body;
     const { _id, mostRecentDocs } = await DocData.findOne();
-    const id = encodeURIComponent(name);
-    mostRecentDocs.push(id);
+    // console.log(mostRecentDocs);
+    // const id = encodeURIComponent(name);
+    const id = crypto.randomBytes(32).toString('hex');
+    mostRecentDocs.push({ id, name });
     await DocData.findByIdAndUpdate(_id, { mostRecentDocs: mostRecentDocs });
 
     return res.send({ id });
@@ -316,32 +347,34 @@ app.post('/collection/create', async (req, res) => {
 
 app.post('/collection/delete', async (req, res) => {
     const { id } = req.body;
-    const { _id, mostRecentDocs } = await DocData.findOne();
-    const index = mostRecentDocs.indexOf(id);
-    // if we are deleting a doc which exists
-    if (index > -1) {
-        mostRecentDocs.splice(index, 1);
+    let { _id, mostRecentDocs } = await DocData.findOne();
+
+    const deletedDoc = mostRecentDocs.find(doc => doc.id === id);
+    mostRecentDocs = mostRecentDocs.filter(doc => doc.id !== id);
+    if (deletedDoc === undefined) {
+        // console.log('doc does not exist');
+        return res.send({ error: true, message: 'doc does not exist' });
+    }
+    else {
         await DocData.findByIdAndUpdate(_id, {
             mostRecentDocs: mostRecentDocs,
         });
         await persistence.clearDocument(id);
         return res.send({});
     }
-    return res.send({
-        error: true,
-        message: 'tried to delete doc that does not exist',
-    });
 });
 
 app.get('/collection/list', async (req, res) => {
     // const docs = await persistence.getAllDocNames();
     let { _id, mostRecentDocs } = await DocData.findOne();
+    // console.log(mostRecentDocs);
     if (mostRecentDocs.length > 10) mostRecentDocs = mostRecentDocs.slice(-10);
-    const toSend = mostRecentDocs.map((docName) => {
-        return { id: docName, name: decodeURIComponent(docName) };
-    });
-    console.log(toSend);
-    return res.send(toSend);
+    mostRecentDocs.reverse();
+    // const toSend = mostRecentDocs.map((docName) => {
+    //     return { id: docName, name: decodeURIComponent(docName) };
+    // });
+    // console.log(toSend);
+    return res.send(mostRecentDocs);
 });
 
 app.post('/collection/exists', async (req, res) => {
@@ -376,7 +409,7 @@ app.post('/media/upload', upload.single('file'), async (req, res) => {
             res.send({ error: true, message: 'unable to upload media' });
         });
         uploader.on('end', async function () {
-            console.log('done uploading');
+            // console.log('done uploading');
             await unlinkAsync(req.file.path);
             newMedia.url =
                 'https://media.bkmj-storage.us-nyc1.upcloudobjects.com/' +
@@ -402,7 +435,16 @@ app.get('/media/access/:mediaid', async (req, res) => {
     }
 });
 
+app.post('/authenticate', (req, res) => {
+    req.session._id = 'grading script'
+    req.session.save(() => {
+        // console.log('id after login: ', req.session._id);
+        res.send({ status: 'OK' });
+    });
+})
+
 const port = 5001;
 app.listen(port, () => {
     console.log(`Listening on port ${port}...`);
 });
+
