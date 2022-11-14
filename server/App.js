@@ -24,6 +24,7 @@ const { promisify } = require('util');
 const unlinkAsync = promisify(fs.unlink);
 const path = require('path');
 const https = require('https');
+const crypto = require('crypto');
 
 // db
 const User = require('./models/User');
@@ -113,6 +114,14 @@ app.get('/edit:id', (req, res) => {
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
+app.get('/home', (req, res) => {
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
+
+app.get('/edit/*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
+
 const presenceData = {
     // doc1ID: {
     // session_id1: presence1,
@@ -125,12 +134,15 @@ const presenceData = {
 };
 
 app.get('/api/connect/:id', async (req, res) => {
-    const { id } = req.params;
+    let { id } = req.params;
 
-    // console.log('connect to ' + id);
+    console.log('pre encode: ', id);
     const { _id, mostRecentDocs } = await DocData.findOne();
+    id = encodeURIComponent(id);
     const index = mostRecentDocs.indexOf(id);
+    console.log('encoded, found: ', id, index);
     if (index <= -1) {
+        console.log('doc does not exist');
         return res.send({ error: true, message: 'doc does not exist' });
     }
     mostRecentDocs.splice(index, 1);
@@ -141,7 +153,6 @@ app.get('/api/connect/:id', async (req, res) => {
     const documentState = Y.encodeStateAsUpdate(ydoc);
     const base64Encoded = fromUint8Array(documentState);
 
-    // console.log('sending sync: ', base64Encoded);
     res.writeHead(200, {
         Connection: 'keep-alive',
         'Content-Type': 'text/event-stream',
@@ -217,14 +228,20 @@ app.post('/api/presence/:id', async (req, res) => {
 });
 // login routes (use router later?)
 app.post('/users/signup', async (req, res) => {
-    const { name, password, email } = req.body.values;
+    const { name, password, email } = req.body;
     if ((await User.findOne({ email: email })) !== null)
         return res.send({ error: true, message: 'user email already exists' });
 
-    const newUser = new User({ name, password, email, verified: true });
-    const _id = (await newUser.save())._id;
-    const encodedID = encodeURIComponent(_id);
-    const verifyUrl = `http://bkmj.cse356.compas.cs.stonybrook.edu/users/verify?key=${encodedID}`;
+    const newUser = new User({
+        name,
+        password,
+        email,
+        key: crypto.randomBytes(32).toString('hex'),
+        verified: false,
+    });
+    await newUser.save();
+    const encodedEmail = encodeURIComponent(newUser.email);
+    const verifyUrl = `http://bkmj.cse356.compas.cs.stonybrook.edu/users/verify?email=${encodedEmail}&key=${newUser.key}`;
 
     transporter.sendMail({
         to: newUser.email,
@@ -237,21 +254,36 @@ app.post('/users/signup', async (req, res) => {
 });
 
 app.get('/users/verify', async (req, res) => {
-    const _id = req.query.key;
-    const user = await User.findById(_id);
-    if (user === null)
-        return res.send({
-            error: true,
-            message: 'incorrect key for email verification',
-        });
-
-    user.verified = true;
-    await user.save();
-    return res.send({ status: 'OK' });
+    const { email, key } = req.query;
+    User.findOne({ email: email }).then((user) => {
+        if (user == null) {
+            res.send({
+                error: true,
+                message: 'invalid verification attempt (no user with email)',
+            });
+            return;
+        } else {
+            if (user.verified == false && key == user.key) {
+                user.verified = true;
+                user.save().then((user) => {
+                    res.send({ status: 'OK' });
+                    return;
+                });
+            } else {
+                res.send({
+                    error: true,
+                    message:
+                        'invalid verification attempt (wrong key or already verified)',
+                });
+                return;
+            }
+        }
+    });
 });
 
 app.post('/users/login', async (req, res) => {
-    const { email, password } = req.body.values;
+    const { email, password } = req.body;
+    console.log(email, password);
     const user = await User.findOne({
         email: email,
         password: password,
@@ -275,10 +307,11 @@ app.post('/users/logout', async (req, res) => {
 app.post('/collection/create', async (req, res) => {
     const { name } = req.body;
     const { _id, mostRecentDocs } = await DocData.findOne();
-    mostRecentDocs.push(name);
+    const id = encodeURIComponent(name);
+    mostRecentDocs.push(id);
     await DocData.findByIdAndUpdate(_id, { mostRecentDocs: mostRecentDocs });
 
-    return res.send({ id: name });
+    return res.send({ id });
 });
 
 app.post('/collection/delete', async (req, res) => {
@@ -300,12 +333,12 @@ app.post('/collection/delete', async (req, res) => {
     });
 });
 
-app.post('/collection/list', async (req, res) => {
+app.get('/collection/list', async (req, res) => {
     // const docs = await persistence.getAllDocNames();
     let { _id, mostRecentDocs } = await DocData.findOne();
     if (mostRecentDocs.length > 10) mostRecentDocs = mostRecentDocs.slice(-10);
     const toSend = mostRecentDocs.map((docName) => {
-        return { id: docName, name: docName };
+        return { id: docName, name: decodeURIComponent(docName) };
     });
     console.log(toSend);
     return res.send(toSend);
