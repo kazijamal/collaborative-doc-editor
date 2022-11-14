@@ -63,18 +63,9 @@ const Home = ({ url_prefix, setName }: PropType) => {
         <div>
             <h1>Home</h1>
             {error}
-            {docs.map((doc: any) => {
-                return (
-                    <div key={doc.id}>
-                        <Link to={`/edit/${doc.id}`}> Connect to {doc.name} </Link>
-                        {/* <div onClick={() => connect(doc)}>{doc}</div> */}
-                        <button onClick={() => deleteDoc(doc)}>delete</button>
-                    </div>
-                );
-            })}
             <form onSubmit={(e) => create(e, id)}>
                 <label>
-                    Create doc
+                    <h3>Create doc</h3>
                     <input
                         type='text'
                         id='docID'
@@ -86,8 +77,19 @@ const Home = ({ url_prefix, setName }: PropType) => {
                 <br></br>
                 <input type='submit' />
             </form>
+            <br></br><hr></hr>
+            {docs.map((doc: any) => {
+                return (
+                    <div key={doc.id}>
+                        <Link to={`/edit/${doc.id}`}> <h3>Connect to {doc.name} </h3></Link>
+                        {/* <div onClick={() => connect(doc)}>{doc}</div> */}
+                        <button onClick={() => deleteDoc(doc)}>delete</button><br></br><br></br>
+                    </div>
+                );
+            })}
+            <hr></hr>
             <Link onClick={() => onLogout()} to='/'>
-                Logout
+                <h3>Logout</h3>
             </Link>
         </div>
     );

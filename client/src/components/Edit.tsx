@@ -24,6 +24,7 @@ const Edit = ({ url_prefix, name }: PropType) => {
     let editor: any = null;
     let quillRef: any = null;
     const [cursorPos, setCursorPos] = useState();
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         attachQuillRefs();
@@ -48,7 +49,7 @@ const Edit = ({ url_prefix, name }: PropType) => {
             new QuillBinding(ytext, editor);
 
             editor.on('selection-change', async (data: any) => {
-                console.log('data', data);
+                console.log('cursor change', data);
                 if (data === null) return;
                 setCursorPos(data.index);
                 await axios.post(
@@ -81,13 +82,14 @@ const Edit = ({ url_prefix, name }: PropType) => {
             });
 
             setYdoc(newDoc);
+            setLoading(false);
         });
 
         eventSource.addEventListener('presence', (e: any) => {
             const cursors = editor.getModule('cursors');
             const presence = JSON.parse(e.data);
 
-            console.log(presence.cursor);
+            // console.log(presence.cursor);
 
             const cursor_id = presence.session_id;
 
@@ -170,17 +172,18 @@ const Edit = ({ url_prefix, name }: PropType) => {
     const formats = ['bold', 'italic', 'underline', 'image'];
 
     return (
-        <div>
-            <ReactQuill
-                ref={(e) => {
-                    quillRef = e;
-                }}
-                theme={'snow'}
-                modules={modules}
-                formats={formats}
-            />
-            <button onClick={disconnect}>Back to Home</button>
-        </div>
+            <div>
+                {loading ? <h2>Loading, please wait..</h2> : ''}
+                <ReactQuill
+                    ref={(e) => {
+                        quillRef = e;
+                    }}
+                    theme={'snow'}
+                    modules={modules}
+                    formats={formats}
+                />
+                <button onClick={disconnect}>Back to Home</button>
+            </div>
     );
 };
 
