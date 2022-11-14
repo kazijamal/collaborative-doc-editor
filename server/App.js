@@ -106,6 +106,12 @@ const myEmitter = new EventEmitter();
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
+app.get('/home', (req, res) => {
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
+app.get('/edit:id', (req, res) => {
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
 
 const presenceData = {
     // doc1ID: {

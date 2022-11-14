@@ -27,6 +27,8 @@ const Edit = ({ url_prefix, name }: PropType) => {
     useEffect(() => {
         attachQuillRefs();
 
+        console.log(id);
+        
         const eventSource = new EventSource(`${url_prefix}/api/connect/${id}`, {
             withCredentials: true,
         });

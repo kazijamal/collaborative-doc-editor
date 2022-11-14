@@ -10,7 +10,7 @@ import Register from './components/Register';
 function App() {
     const [name, setName] = useState('');
 
-    const dev = true;
+    const dev = false;
     const url_prefix = dev ? 'http://localhost:5001' : '';
 
     return (
