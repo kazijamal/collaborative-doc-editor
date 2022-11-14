@@ -70,7 +70,7 @@ app.use(express.static('build'));
 // session middleware
 app.use((req, res, next) => {
     // console.log('id on ' + req.path, req.session._id);
-    if (req.path.includes('users') || req.path.includes('authenticate') || (req.session && req.session._id)) {
+    if (req.path.includes('users') || (req.session && req.session._id)) {
         next();
     } else {
         return res.send({ error: true, message: 'user is not authenticated' });
@@ -130,10 +130,7 @@ const presenceData = {
 
 app.get('/api/connect/:id', async (req, res) => {
     console.log('connect');
-    // console.log('REQ PARAMS', req);
-    // console.log(req.rawHeaders);
     let { id } = req.params;
-    // let id = req.rawHeaders.find()
 
     // console.log('pre encode: ', id);
     let { _id, mostRecentDocs } = await DocData.findOne();
@@ -152,9 +149,7 @@ app.get('/api/connect/:id', async (req, res) => {
     const documentState = Y.encodeStateAsUpdate(ydoc);
     const base64Encoded = fromUint8Array(documentState);
 
-    console.log('---------------------')
-    console.log('GET THE STUFF for ' + id, ydoc.getText('quill').toJSON());
-    console.log('---------------------')
+    // console.log('sending sync for ' + id, ydoc.getText('quill').toJSON());
 
     res.writeHead(200, {
         Connection: 'keep-alive',
@@ -218,24 +213,11 @@ app.post('/api/op/:id', async (req, res) => {
     // console.log(req.body);
     // console.log('update ', JSON.parse(req.body.update));
 
-    // const ydoc = await persistence.getYDoc(id);
-    // Y.applyUpdate(ydoc, req.body.update);
-    // console.log('before', ydoc.getText('quill').toJSON());
-
-    // const update = toUint8Array(JSON.parse(req.body.update).update);
     const update = toUint8Array(req.body.update);
     // console.log("upd:", update);
     await persistence.storeUpdate(id, update);
-    // Y.applyUpdate(ydoc, update);
-    // persistence.clearDocument(id);
-    // await persistence.storeUpdate(id, Y.encodeStateAsUpdate(ydoc));
 
-    // console.log('after', ydoc.getText('quill').toJSON());
-    // id = encodeURIComponent(id);
-
-    // console.log('store update res: ', updated);
     myEmitter.emit(`receivedUpdateFor=${id}`, update);
-    // res.sendStatus(200);
     return res.send({});
 });
 
@@ -244,7 +226,7 @@ app.post('/api/presence/:id', async (req, res) => {
     const { index, length } = req.body;
 
     const presence = {
-        session_id: req.session._id,
+        session_id: req.cookies['connect.sid'],
         name: req.session.name,
         cursor: {
             index,
@@ -311,7 +293,6 @@ app.get('/users/verify', async (req, res) => {
 
 app.post('/users/login', async (req, res) => {
     const { email, password } = req.body;
-    // console.log(email, password);
     const user = await User.findOne({
         email: email,
         password: password,
@@ -337,7 +318,6 @@ app.post('/collection/create', async (req, res) => {
     const { name } = req.body;
     const { _id, mostRecentDocs } = await DocData.findOne();
     // console.log(mostRecentDocs);
-    // const id = encodeURIComponent(name);
     const id = crypto.randomBytes(32).toString('hex');
     mostRecentDocs.push({ id, name });
     await DocData.findByIdAndUpdate(_id, { mostRecentDocs: mostRecentDocs });
@@ -435,16 +415,22 @@ app.get('/media/access/:mediaid', async (req, res) => {
     }
 });
 
-app.post('/authenticate', (req, res) => {
-    req.session._id = 'grading script'
-    req.session.save(() => {
-        // console.log('id after login: ', req.session._id);
-        res.send({ status: 'OK' });
-    });
-})
+app.get('/index/search', (req, res) => {
+
+    const { q } = req.params;
+
+    res.send(/*[{docid, name, snippet}, ...*/);
+});
+
+app.get('/index/suggest', (req, res) => {
+
+    const { q } = req.params;
+
+    res.send(/*[strings,...]*/);
+});
 
 const port = 5001;
 app.listen(port, () => {
-    console.log(`Listening on port ${port}...`);
+    console.log(`------------------\nListening on port ${port}...\n------------------\n`);
 });
 

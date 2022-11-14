@@ -41,6 +41,7 @@ const Edit = ({ url_prefix, name }: PropType) => {
         };
 
         eventSource.addEventListener('sync', (e: any) => {
+            console.log('SYNC EVENT', ydoc);
             const syncEncoded = toUint8Array(e.data);
             const newDoc = new Y.Doc();
             Y.applyUpdate(newDoc, syncEncoded);
@@ -77,13 +78,12 @@ const Edit = ({ url_prefix, name }: PropType) => {
             eventSource.addEventListener('update', (e: any) => {
                 console.log('received update');
                 const updateEncoded = toUint8Array(e.data);
-                console.log(newDoc);
                 Y.applyUpdate(newDoc, updateEncoded);
             });
 
             setYdoc(newDoc);
             setLoading(false);
-        });
+        }, {once: true});
 
         eventSource.addEventListener('presence', (e: any) => {
             const cursors = editor.getModule('cursors');
