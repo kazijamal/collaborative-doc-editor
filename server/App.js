@@ -134,11 +134,10 @@ app.get('/api/connect/:id', async (req, res) => {
 
     // console.log('pre encode: ', id);
     let { _id, mostRecentDocs } = await DocData.findOne();
-    const doc = mostRecentDocs.find(doc => doc.id === id);
+    const doc = mostRecentDocs.find((doc) => doc.id === id);
     // console.log(doc.id, id);
-    mostRecentDocs = mostRecentDocs.filter(doc => doc.id !== id);
+    mostRecentDocs = mostRecentDocs.filter((doc) => doc.id !== id);
     if (doc === undefined) {
-        
         console.log('doc does not exist');
         return res.send({ error: true, message: 'doc does not exist' });
     }
@@ -230,9 +229,9 @@ app.post('/api/presence/:id', async (req, res) => {
         name: req.session.name,
         cursor: {
             index,
-            length
-        }    
-    }
+            length,
+        },
+    };
     res.sendStatus(200);
     myEmitter.emit(`receivedPresenceFor=${id}`, presence);
 });
@@ -329,13 +328,12 @@ app.post('/collection/delete', async (req, res) => {
     const { id } = req.body;
     let { _id, mostRecentDocs } = await DocData.findOne();
 
-    const deletedDoc = mostRecentDocs.find(doc => doc.id === id);
-    mostRecentDocs = mostRecentDocs.filter(doc => doc.id !== id);
+    const deletedDoc = mostRecentDocs.find((doc) => doc.id === id);
+    mostRecentDocs = mostRecentDocs.filter((doc) => doc.id !== id);
     if (deletedDoc === undefined) {
         // console.log('doc does not exist');
         return res.send({ error: true, message: 'doc does not exist' });
-    }
-    else {
+    } else {
         await DocData.findByIdAndUpdate(_id, {
             mostRecentDocs: mostRecentDocs,
         });
@@ -364,7 +362,11 @@ app.post('/collection/exists', async (req, res) => {
 });
 
 app.post('/media/upload', upload.single('file'), async (req, res) => {
-    if (req.file.mimetype != 'image/jpeg' && req.file.mimetype != 'image/png') {
+    if (
+        req.file.mimetype != 'image/jpeg' &&
+        req.file.mimetype != 'image/png' &&
+        req.file.mimetype != 'image/gif'
+    ) {
         await unlinkAsync(req.file.path);
         return res.send({
             error: true,
@@ -416,14 +418,12 @@ app.get('/media/access/:mediaid', async (req, res) => {
 });
 
 app.get('/index/search', (req, res) => {
-
     const { q } = req.params;
 
     res.send(/*[{docid, name, snippet}, ...*/);
 });
 
 app.get('/index/suggest', (req, res) => {
-
     const { q } = req.params;
 
     res.send(/*[strings,...]*/);
@@ -431,6 +431,7 @@ app.get('/index/suggest', (req, res) => {
 
 const port = 5001;
 app.listen(port, () => {
-    console.log(`------------------\nListening on port ${port}...\n------------------\n`);
+    console.log(
+        `------------------\nListening on port ${port}...\n------------------\n`
+    );
 });
-
