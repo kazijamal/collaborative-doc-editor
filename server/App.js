@@ -370,7 +370,7 @@ app.post('/media/upload', upload.single('file'), async (req, res) => {
         await unlinkAsync(req.file.path);
         return res.send({
             error: true,
-            message: 'uploaded media must be jpeg or png image',
+            message: 'uploaded media must be jpeg or png image or gif',
         });
     } else {
         const newMedia = new Media({ mimetype: req.file.mimetype });
