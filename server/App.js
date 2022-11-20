@@ -1,7 +1,3 @@
-/*
-TODO
-- /home route in frontend should send x-cse356 header (add header in nginx)
-*/
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -24,6 +20,7 @@ const { promisify } = require('util');
 const unlinkAsync = promisify(fs.unlink);
 const path = require('path');
 const https = require('https');
+const axios = require('axios');
 const crypto = require('crypto');
 
 // db
@@ -119,14 +116,45 @@ app.get('/edit/*', (req, res) => {
 
 const presenceData = {
     // doc1ID: {
-    // session_id1: presence1,
-    // session_id2: presence2,
-    // ...
+        // session_id1: presence1,
+        // session_id2: presence2,
+        // ...
     // }
     // doc2ID: {
-    // ...
+        // ...
+    // }
+
+    // doc1ID: {
+        // sessions: {
+            // session_id1: presence1,
+            // session_id2: presence2,
+            // ...
+        //},
+        // updates: {
+
+        //}
+
+        // ...
+    // }
+    // doc2ID: {
+        // ...
     // }
 };
+
+
+// only send docs that have been updated
+// setInterval(async (DocData, persistence) => {
+//     const { _id, mostRecentDocs } = await DocData.findOne();
+//     for (const id of Object.keys(presenceData)) {
+//         // console.log((await persistence.getYDoc(id)))
+//         const ydoc = await persistence.getYDoc(id);
+//         axios.post('http://209.151.155.43/elastic/index', {
+//             id,
+//             name: mostRecentDocs.find(doc => doc.id === id).name,
+//             text: ydoc.getText('quill')
+//         });
+//     }
+// }, 20, DocData, persistence);
 
 app.get('/api/connect/:id', async (req, res) => {
     console.log('connect');
@@ -134,19 +162,19 @@ app.get('/api/connect/:id', async (req, res) => {
 
     // console.log('pre encode: ', id);
     let { _id, mostRecentDocs } = await DocData.findOne();
-    const doc = mostRecentDocs.find((doc) => doc.id === id);
+    const doc = mostRecentDocs.find(doc => doc.id === id);
     // console.log(doc.id, id);
-    mostRecentDocs = mostRecentDocs.filter((doc) => doc.id !== id);
+    mostRecentDocs = mostRecentDocs.filter(doc => doc.id !== id);
     if (doc === undefined) {
+        
         console.log('doc does not exist');
         return res.send({ error: true, message: 'doc does not exist' });
     }
     mostRecentDocs.push(doc);
     await DocData.findByIdAndUpdate(_id, { mostRecentDocs: mostRecentDocs });
 
-    const ydoc = await persistence.getYDoc(id);
-    const documentState = Y.encodeStateAsUpdate(ydoc);
-    const base64Encoded = fromUint8Array(documentState);
+    const ydoc = await axios.post('http://209.94.59.192/getDocState', { id });
+    const base64Encoded = ydoc.data.docState;
 
     // console.log('sending sync for ' + id, ydoc.getText('quill').toJSON());
 
@@ -207,20 +235,28 @@ app.get('/api/connect/:id', async (req, res) => {
     });
 });
 
-app.post('/api/op/:id', async (req, res) => {
+app.post('/api/op/:id', async (req, res) => { 
     let { id } = req.params;
-    // console.log(req.body);
-    // console.log('update ', JSON.parse(req.body.update));
 
-    const update = toUint8Array(req.body.update);
-    // console.log("upd:", update);
-    await persistence.storeUpdate(id, update);
+    // await persistence.storeUpdate(id, update);
+    await axios.post('http://209.94.59.192/update', { id, update: req.body.update });
+    
+    // let { _id, mostRecentDocs } = await DocData.findOne();
+    
+    myEmitter.emit(`receivedUpdateFor=${id}`, toUint8Array(req.body.update));
+    
+    // const ydoc = (await axios.post('http://209.94.59.192/getYdoc', { id })).data;
+    // await axios.post('http://209.151.155.43/elastic/index', {
+    //     id,
+    //     name: mostRecentDocs.find(doc => doc.id === id).name,
+    //     text: ydoc.getText('quill').toString()
+    // });
 
-    myEmitter.emit(`receivedUpdateFor=${id}`, update);
     return res.send({});
 });
 
 app.post('/api/presence/:id', async (req, res) => {
+    // console.log('presence');
     const { id } = req.params;
     const { index, length } = req.body;
 
@@ -229,9 +265,9 @@ app.post('/api/presence/:id', async (req, res) => {
         name: req.session.name,
         cursor: {
             index,
-            length,
-        },
-    };
+            length
+        }    
+    }
     res.sendStatus(200);
     myEmitter.emit(`receivedPresenceFor=${id}`, presence);
 });
@@ -321,6 +357,17 @@ app.post('/collection/create', async (req, res) => {
     mostRecentDocs.push({ id, name });
     await DocData.findByIdAndUpdate(_id, { mostRecentDocs: mostRecentDocs });
 
+    try {
+        await axios.post('http://209.151.155.43/elastic/index', {
+            id,
+            name,
+            text: ''
+        })
+    }
+    catch (e) {
+        console.log(e);
+    }
+
     return res.send({ id });
 });
 
@@ -328,22 +375,23 @@ app.post('/collection/delete', async (req, res) => {
     const { id } = req.body;
     let { _id, mostRecentDocs } = await DocData.findOne();
 
-    const deletedDoc = mostRecentDocs.find((doc) => doc.id === id);
-    mostRecentDocs = mostRecentDocs.filter((doc) => doc.id !== id);
+    const deletedDoc = mostRecentDocs.find(doc => doc.id === id);
+    mostRecentDocs = mostRecentDocs.filter(doc => doc.id !== id);
     if (deletedDoc === undefined) {
         // console.log('doc does not exist');
         return res.send({ error: true, message: 'doc does not exist' });
-    } else {
+    }
+    else {
         await DocData.findByIdAndUpdate(_id, {
             mostRecentDocs: mostRecentDocs,
         });
-        await persistence.clearDocument(id);
+        // await persistence.clearDocument(id);
+        axios.post('http://209.94.59.192/clear', { id });
         return res.send({});
     }
 });
 
 app.get('/collection/list', async (req, res) => {
-    // const docs = await persistence.getAllDocNames();
     let { _id, mostRecentDocs } = await DocData.findOne();
     // console.log(mostRecentDocs);
     if (mostRecentDocs.length > 10) mostRecentDocs = mostRecentDocs.slice(-10);
@@ -362,11 +410,7 @@ app.post('/collection/exists', async (req, res) => {
 });
 
 app.post('/media/upload', upload.single('file'), async (req, res) => {
-    if (
-        req.file.mimetype != 'image/jpeg' &&
-        req.file.mimetype != 'image/png' &&
-        req.file.mimetype != 'image/gif'
-    ) {
+    if (req.file.mimetype != 'image/jpeg' && req.file.mimetype != 'image/png' && req.file.mimetype != 'image/gif') {
         await unlinkAsync(req.file.path);
         return res.send({
             error: true,
@@ -417,21 +461,64 @@ app.get('/media/access/:mediaid', async (req, res) => {
     }
 });
 
-app.get('/index/search', (req, res) => {
-    const { q } = req.params;
+app.get('/index/search', async (req, res) => {
 
-    res.send(/*[{docid, name, snippet}, ...*/);
+    const { q } = req.query;
+
+    try {
+        const { _id, mostRecentDocs } = await DocData.findOne();
+
+        for (const doc of mostRecentDocs) {
+            const text = (await axios.post('http://209.94.59.192/getYDocText', { id: doc.id })).data;
+
+            await axios.post('http://209.151.155.43/elastic/index', {
+                id: doc.id,
+                name: doc.name,
+                text
+            });
+
+        }
+        const result = await axios.post('http://209.151.155.43/elastic/search', {
+            query: q
+        });
+        return res.send(result.data);
+    }
+    catch (e) {
+        console.log(e);
+        return res.send({ error: true, message: 'suggest failed' });
+    }
 });
 
-app.get('/index/suggest', (req, res) => {
-    const { q } = req.params;
+app.get('/index/suggest', async (req, res) => {
 
-    res.send(/*[strings,...]*/);
+    const { q } = req.query;
+
+    try {
+        const { _id, mostRecentDocs } = await DocData.findOne();
+
+        for (const doc of mostRecentDocs) {
+            const text = (await axios.post('http://209.94.59.192/getYDocText', { id: doc.id })).data;
+
+            console.log(text);
+
+            await axios.post('http://209.151.155.43/elastic/index', {
+                id: doc.id,
+                name: doc.name,
+                text
+            });
+        }
+        const result = await axios.post('http://209.151.155.43/elastic/suggest', {
+            query: q
+        });
+        return res.send(result.data);
+    }
+    catch (e) {
+        return res.send({ error: true, message: 'suggest failed' });
+    }
 });
 
 const port = 5001;
 app.listen(port, () => {
-    console.log(
-        `------------------\nListening on port ${port}...\n------------------\n`
-    );
+    console.log(`------------------\nListening on port ${port}...\n------------------\n`);
 });
+
