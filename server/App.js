@@ -8,8 +8,6 @@ const nodemailer = require('nodemailer');
 const app = express();
 const cors = require('cors');
 const Y = require('yjs');
-const LeveldbPersistence = require('y-leveldb').LeveldbPersistence;
-const persistence = new LeveldbPersistence('./leveldb');
 const toUint8Array = require('js-base64').toUint8Array;
 const fromUint8Array = require('js-base64').fromUint8Array;
 const EventEmitter = require('node:events').EventEmitter;
@@ -123,25 +121,11 @@ const presenceData = {
     // doc2ID: {
         // ...
     // }
-
-    // doc1ID: {
-        // sessions: {
-            // session_id1: presence1,
-            // session_id2: presence2,
-            // ...
-        //},
-        // updates: {
-
-        //}
-
-        // ...
-    // }
-    // doc2ID: {
-        // ...
-    // }
 };
 
+const updates = {
 
+}
 // only send docs that have been updated
 // setInterval(async (DocData, persistence) => {
 //     const { _id, mostRecentDocs } = await DocData.findOne();
@@ -189,9 +173,16 @@ app.get('/api/connect/:id', async (req, res) => {
     res.write('\n\n');
 
     myEmitter.on(`receivedUpdateFor=${id}`, (update) => {
-        res.write('event: update\n');
-        res.write(`data: ${fromUint8Array(update)}`);
-        res.write('\n\n');
+        // res.write('event: update\n');
+        // res.write(`data: ${fromUint8Array(update)}`);
+        // res.write('\n\n');
+
+        for (const incrementalUpdate of update) {
+            res.write('event: update\n');
+            // res.write(`data: ${fromUint8Array(incrementalUpdate)}`);
+            res.write(`data: ${incrementalUpdate}`);
+            res.write('\n\n');
+        }
     });
 
     myEmitter.on(`receivedPresenceFor=${id}`, (presence) => {
@@ -210,6 +201,13 @@ app.get('/api/connect/:id', async (req, res) => {
     myEmitter.on(`closeConnectionsFor=${req.session._id}`, () => {
         res.end();
     });
+
+    setInterval(() => {
+        if (updates[id] !== undefined && updates[id].length > 0) {
+            myEmitter.emit(`receivedUpdateFor=${id}`, updates[id]);
+        }
+        updates[id] = []
+    }, 40);
 
     setTimeout(() => {
         if (presenceData[id] !== undefined) {
@@ -238,13 +236,14 @@ app.get('/api/connect/:id', async (req, res) => {
 app.post('/api/op/:id', async (req, res) => { 
     let { id } = req.params;
 
-    // await persistence.storeUpdate(id, update);
-    await axios.post('http://209.94.59.192/update', { id, update: req.body.update });
+    await axios.post('http://209.94.59.192/update', { id, update: req.body.update });    
+    // myEmitter.emit(`receivedUpdateFor=${id}`, toUint8Array(req.body.update));
     
-    // let { _id, mostRecentDocs } = await DocData.findOne();
-    
-    myEmitter.emit(`receivedUpdateFor=${id}`, toUint8Array(req.body.update));
-    
+    if (updates[id] === undefined) {
+        updates[id] = [];
+    }
+    updates[id].push(req.body.update);
+    // updates[id].push(toUint8Array(req.body.update));
     // const ydoc = (await axios.post('http://209.94.59.192/getYdoc', { id })).data;
     // await axios.post('http://209.151.155.43/elastic/index', {
     //     id,
@@ -256,7 +255,6 @@ app.post('/api/op/:id', async (req, res) => {
 });
 
 app.post('/api/presence/:id', async (req, res) => {
-    // console.log('presence');
     const { id } = req.params;
     const { index, length } = req.body;
 
