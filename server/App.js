@@ -26,7 +26,7 @@ const User = require('./models/User');
 const DocData = require('./models/DocData');
 const Media = require('./models/Media');
 
-const mongoDB = 'mongodb://127.0.0.1/docs';
+const mongoDB = 'mongodb://209.151.152.38:27017/docs';
 const clientPromise = mongoose
     .connect(mongoDB, { useNewUrlParser: true, useUnifiedTopology: true })
     .then((m) => m.connection.getClient());
