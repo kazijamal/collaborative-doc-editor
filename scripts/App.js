@@ -15,6 +15,7 @@ const fromUint8Array = require('js-base64').fromUint8Array;
 const EventEmitter = require('node:events').EventEmitter;
 const path = require('path');
 const axios = require('axios');
+const memjs = require('memjs');
 
 // db
 const Doc = require('./models/Doc');
@@ -39,6 +40,32 @@ db.on('error', console.error.bind(console, 'MongoDB connection error'));
 const elasticClient = new Client({
 	node: 'http://209.94.59.37:9200'
 });
+
+const memcached = memjs.Client.create("bkmj:password@209.151.154.78:11211");
+
+const verifySearchCache = (req, res, next) => {
+	const { q } = req.query;
+	memcached.get(`search:${q}`, (err, val) => {
+		if (err) throw err;
+		if (val !== null) {
+			return res.json(JSON.parse(val));
+		} else {
+			return next();
+		}
+	});
+};
+
+const verifySuggestCache = (req, res, next) => {
+	const { q } = req.query;
+	memcached.get(`suggest:${q}`, (err, val) => {
+		if (err) throw err;
+		if (val !== null) {
+			return res.json(JSON.parse(val));
+		} else {
+			return next();
+		}
+	});
+};
 
 // middleware
 app.use(
@@ -66,7 +93,7 @@ const docs = new Map();
 const myEmitter = new EventEmitter();
 
 // const CLUSTER_IPS = ['209.151.150.8'];
-const timer = 2000;
+const timer = 8000;
 setInterval(async () => {
 
     for (const [id, update] of Object.entries(updates)) {
@@ -87,14 +114,11 @@ setInterval(async () => {
     }
 }, timer);
 
-// let oldValue = 0;
-// app.get('/cpu', (req, res) => {
-//     let cpu = process.cpuUsage();
-//     let newValue = cpu.user + cpu.system;
-//     let result = String(newValue - oldValue);
-//     res.send(String(newValue - oldValue));
-//     oldValue = newValue;
-// });
+// names = new Map();
+// app.post('/name', (req, res) => {
+//     const { cookie, name } = req.body;
+//     names.set(cookie, name);
+//})
 
 app.get('/api/connect/:id', async (req, res) => {
     let { id } = req.params;
@@ -183,7 +207,7 @@ app.post('/api/presence/:id', async (req, res) => {
 	const doc = await Doc.findById(id);
     const presence = {
         session_id: req.cookies['connect.sid'],
-        name: 'name',
+        name: 'name',//names.get(req.cookies['connect.sid'])
         cursor: {
             index,
             length
@@ -191,6 +215,91 @@ app.post('/api/presence/:id', async (req, res) => {
     }
     myEmitter.emit(`receivedPresenceFor=${id}`, presence);
 });
+
+app.get('/index/search', verifySearchCache, async (req, res) => {
+
+	try {
+		// const beforeMillis = new Date().getTime();
+		// console.log('search ', req.query.q);
+		const result = await elasticClient.search({
+			index: 'docs',
+			query: {
+				'match_phrase': {
+					'text': req.query.q
+				}
+			},
+			highlight: {
+				'fields': {
+					'text': {},
+				},
+				'type': 'fvh',
+				'fragment_size': 105,
+			}
+		});
+
+		// const afterMillis = new Date().getTime();
+		const hits = result.hits.hits.slice(0, 10);
+		// console.log('search ', req.query.q, (afterMillis - beforeMillis), hits);
+
+		const searchResults = hits.map((hit) => ({ docid: hit._id, name: 'Milestone #4', snippet: hit.highlight.text[0]}));
+		res.send(searchResults);
+
+		await memcached.set(`search:${req.query.q}`, JSON.stringify(searchResults), { expires: 30 });
+
+		// console.log(req.query.q, searchResults);
+	}
+	catch (e) {
+		console.log(e);
+		res.send(e);
+	}
+});
+
+app.get('/index/suggest', verifySuggestCache, async (req, res) => {
+
+	try {
+		// const beforeMillis = new Date().getTime();
+		// console.log('suggest ', req.query.q, new Date().getTime());
+		// console.log('suggest ', req.query.q);
+		const result = await elasticClient.search({
+			index: 'docs',
+			query: {
+				'prefix': {
+					'exacttext': req.query.q
+				}
+			},
+			highlight: {
+				'fields': {
+					'exacttext': {}
+				},
+				'fragment_size': 1,
+				'number_of_fragments': 1,
+				'boundary_scanner': 'word',
+				'pre_tags': [""],
+				'post_tags': [""]
+			}
+		});
+		// const afterMillis = new Date().getTime();
+		// console.log('suggest ', req.query.q, (afterMillis - beforeMillis), result.hits.hits);
+
+		// console.log('return from suggest ', req.query.q, new Date().getTime());
+
+		const suggestions = result.hits.hits.map((hit) => (hit.highlight.exacttext[0]));
+		const suggestionsWithoutQuery = suggestions.filter((x) => x != req.query.q);
+		const uniqueSuggestions = Array.from(new Set(suggestionsWithoutQuery));
+		res.send(uniqueSuggestions);
+
+		await memcached.set(`suggest:${req.query.q}`, JSON.stringify(uniqueSuggestions), { expires: 30 });
+
+		// console.log(req.query.q, uniqueSuggestions);
+	}
+	catch (e) {
+		console.log(e);
+		res.send(e);
+	}
+});
+
+
+
 
 const port = 5001;
 app.listen(port, () => {
