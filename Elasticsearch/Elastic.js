@@ -1,9 +1,3 @@
-// LRU instead of most recent docs
-// change index settings
-// change code to map
-
-// try queueing writes
-
 const { Client } = require('@elastic/elasticsearch');
 const express = require('express');
 
@@ -18,7 +12,6 @@ app.get('/elastic', (req, res) => {
     res.send('slash elastic');
 });
 
-// TODO: document name and using fvh or unified highlighting
 app.post('/elastic/create', async (req, res) => {
     try {
         const result = await elasticClient.indices.create({
