@@ -1,1 +1,1 @@
-# cse356-project
+# collaborative-doc-editor
