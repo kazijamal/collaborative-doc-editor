@@ -1,11 +1,3 @@
-// 0. tell Kazi about new changes
-// 1. delete excess machines
-// 2. create a second cluster machine
-// 3. write utils for restrating and for copying the App file and nginx config
-// 4. test
-// 5. realize search still doesn't work
-// 6. cry
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
